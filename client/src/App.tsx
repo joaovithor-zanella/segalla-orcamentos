@@ -5,33 +5,45 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Products from "./pages/Products";
+import QuoteEditor from "./pages/QuoteEditor";
+import QuotesList from "./pages/QuotesList";
+import QuoteView from "./pages/QuoteView";
+import AdminUsers from "./pages/AdminUsers";
+import AdminPayments from "./pages/AdminPayments";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      {/* Dashboard */}
+      <Route path="/" component={Home} />
+
+      {/* Catálogo de Produtos */}
+      <Route path="/produtos" component={Products} />
+
+      {/* Orçamentos */}
+      <Route path="/orcamentos" component={QuotesList} />
+      <Route path="/orcamentos/novo" component={QuoteEditor} />
+      <Route path="/orcamentos/:id" component={QuoteView} />
+      <Route path="/orcamentos/:id/editar" component={QuoteEditor} />
+
+      {/* Admin */}
+      <Route path="/admin/usuarios" component={AdminUsers} />
+      <Route path="/admin/pagamentos" component={AdminPayments} />
+
+      {/* Fallback */}
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <Toaster />
+          <Toaster richColors position="top-right" />
           <Router />
         </TooltipProvider>
       </ThemeProvider>
