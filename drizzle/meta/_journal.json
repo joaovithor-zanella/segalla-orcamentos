@@ -15,6 +15,20 @@
       "when": 1776868938770,
       "tag": "0001_worthless_sandman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1780513486893,
+      "tag": "0002_certain_centennial",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1780513526683,
+      "tag": "0003_shiny_sleepwalker",
+      "breakpoints": true
     }
   ]
 }

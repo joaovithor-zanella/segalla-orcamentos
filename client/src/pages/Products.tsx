@@ -22,7 +22,7 @@ import { toast } from "sonner";
 interface CartItem {
   productCode: string;
   productName: string;
-  productReference: string;
+  productBrand: string;
   quantity: number;
   unitPrice: number;
 }
@@ -53,7 +53,7 @@ export default function Products() {
   const addToCart = (product: {
     code: string;
     name: string;
-    reference: string;
+    brand: string;
     price: number;
     stock: number;
   }) => {
@@ -73,7 +73,7 @@ export default function Products() {
       setCart([...cart, {
         productCode: product.code,
         productName: product.name,
-        productReference: product.reference,
+        productBrand: product.brand,
         quantity: 1,
         unitPrice: product.price,
       }]);
@@ -254,9 +254,6 @@ export default function Products() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                            {product.reference || "—"}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
                             {product.brand || "—"}
                           </td>
                           <td className="px-4 py-3 text-right font-semibold">

@@ -10,14 +10,20 @@ import {
 
 /**
  * Core user table backing auth flow.
+ * Para autenticação local: use username + passwordHash
+ * Para OAuth: use openId
  */
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  openId: varchar("openId", { length: 64 }).unique(), // OAuth ID (opcional para auth local)
+  username: varchar("username", { length: 100 }).unique(), // Para autenticação local
+  passwordHash: varchar("passwordHash", { length: 255 }), // Hash da senha (bcrypt)
   name: text("name"),
   email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
+  loginMethod: varchar("loginMethod", { length: 64 }), // "local" ou "oauth"
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  canViewOtherQuotes: mysqlEnum("canViewOtherQuotes", ["yes", "no"]).default("no").notNull(), // Permissão para ver orçamentos de outros
+  active: mysqlEnum("active", ["yes", "no"]).default("yes").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -69,7 +75,7 @@ export const quoteItems = mysqlTable("quote_items", {
   quoteId: int("quoteId").notNull(),
   productCode: varchar("productCode", { length: 60 }).notNull(),
   productName: varchar("productName", { length: 300 }).notNull(),
-  productReference: varchar("productReference", { length: 120 }),
+  productBrand: varchar("productBrand", { length: 120 }),
   quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default("1.00"),
   unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }).notNull().default("0.00"),
   totalPrice: decimal("totalPrice", { precision: 12, scale: 2 }).notNull().default("0.00"),

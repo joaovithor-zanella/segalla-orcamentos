@@ -52,7 +52,7 @@ interface QuoteExportData {
   items: Array<{
     productCode: string;
     productName: string;
-    productReference: string | null;
+    productBrand: string | null;
     quantity: string;
     unitPrice: string;
     totalPrice: string;
@@ -81,7 +81,7 @@ export async function loadQuoteExportData(quoteId: number): Promise<QuoteExportD
     items: items.map((item) => ({
       productCode: item.productCode,
       productName: item.productName,
-      productReference: item.productReference,
+      productBrand: item.productBrand,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       totalPrice: item.totalPrice,
@@ -208,7 +208,7 @@ export async function exportQuotePDF(data: QuoteExportData): Promise<Buffer> {
       doc.fillColor("#333").fontSize(8).font("Helvetica");
       doc.text(item.productCode, colX[0] + 3, yPos + 5, { width: colWidths[0] - 6 });
       doc.text(item.productName, colX[1] + 3, yPos + 5, { width: colWidths[1] - 6, ellipsis: true });
-      doc.text(item.productReference || "—", colX[2] + 3, yPos + 5, { width: colWidths[2] - 6 });
+      doc.text(item.productBrand || "—", colX[2] + 3, yPos + 5, { width: colWidths[2] - 6 });
       doc.text(parseFloat(item.quantity).toString(), colX[3] + 3, yPos + 5, { width: colWidths[3] - 6, align: "right" });
       doc.text(formatCurrency(item.unitPrice), colX[4] + 3, yPos + 5, { width: colWidths[4] - 6, align: "right" });
       doc.text(formatCurrency(item.totalPrice), colX[5] + 3, yPos + 5, { width: colWidths[5] - 6, align: "right" });
@@ -275,7 +275,7 @@ export async function exportQuoteXLSX(data: QuoteExportData): Promise<Buffer> {
   const itemRows = data.items.map((item) => [
     item.productCode,
     item.productName,
-    item.productReference || "",
+    item.productBrand || "",
     parseFloat(item.quantity),
     parseFloat(item.unitPrice),
     parseFloat(item.totalPrice),
@@ -409,7 +409,7 @@ export async function exportQuoteDOCX(data: QuoteExportData): Promise<Buffer> {
           }),
           new TableCell({
             shading: idx % 2 === 0 ? undefined : { type: ShadingType.SOLID, color: "F9F9F9" },
-            children: [new Paragraph({ children: [new TextRun({ text: item.productReference || "—", size: 18 })] })],
+            children: [new Paragraph({ children: [new TextRun({ text: item.productBrand || "—", size: 18 })] })],
           }),
           new TableCell({
             shading: idx % 2 === 0 ? undefined : { type: ShadingType.SOLID, color: "F9F9F9" },

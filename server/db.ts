@@ -83,9 +83,45 @@ export async function getUserById(id: number) {
   return result[0];
 }
 
+export async function getUserByUsername(username: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+  return result[0];
+}
+
+export async function createLocalUser(data: {
+  username: string;
+  passwordHash: string;
+  name: string;
+  role: 'user' | 'admin';
+  canViewOtherQuotes?: 'yes' | 'no';
+}) {
+  const db = await getDb();
+  if (!db) throw new Error('DB not available');
+  const result = await db.insert(users).values({
+    username: data.username,
+    passwordHash: data.passwordHash,
+    name: data.name,
+    role: data.role,
+    canViewOtherQuotes: data.canViewOtherQuotes || 'no',
+    loginMethod: 'local',
+    active: 'yes',
+    lastSignedIn: new Date(),
+  });
+  return Number(result[0].insertId);
+}
+
 export async function updateUser(
   id: number,
-  data: { name?: string; email?: string; role?: "user" | "admin" }
+  data: {
+    name?: string;
+    email?: string;
+    role?: 'user' | 'admin';
+    passwordHash?: string;
+    canViewOtherQuotes?: 'yes' | 'no';
+    active?: 'yes' | 'no';
+  }
 ) {
   const db = await getDb();
   if (!db) return;

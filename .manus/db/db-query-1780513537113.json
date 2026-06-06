@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `users` MODIFY COLUMN `openId` varchar(64);\nALTER TABLE `users` ADD `username` varchar(100);\nALTER TABLE `users` ADD `passwordHash` varchar(255);\nALTER TABLE `users` ADD `canViewOtherQuotes` enum('yes','no') DEFAULT 'no' NOT NULL;\nALTER TABLE `users` ADD `active` enum('yes','no') DEFAULT 'yes' NOT NULL;\nALTER TABLE `users` ADD CONSTRAINT `users_username_unique` UNIQUE(`username`);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user pi3ynY2af1Qiiwj.root --database DejDaqUSMBApBtqv9hxC7b --execute ALTER TABLE `users` MODIFY COLUMN `openId` varchar(64);\nALTER TABLE `users` ADD `username` varchar(100);\nALTER TABLE `users` ADD `passwordHash` varchar(255);\nALTER TABLE `users` ADD `canViewOtherQuotes` enum('yes','no') DEFAULT 'no' NOT NULL;\nALTER TABLE `users` ADD `active` enum('yes','no') DEFAULT 'yes' NOT NULL;\nALTER TABLE `users` ADD CONSTRAINT `users_username_unique` UNIQUE(`username`);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1908
+}

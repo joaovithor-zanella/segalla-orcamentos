@@ -8,6 +8,8 @@ import {
   getAllUsers,
   getUserById,
   getUserByOpenId,
+  getUserByUsername,
+  createLocalUser,
   upsertUser,
   updateUser,
   deleteUser,
@@ -25,6 +27,7 @@ import {
   replaceQuoteItems,
   recalcQuoteTotal,
 } from "./db";
+import { hashPassword, verifyPassword } from "./localAuthManager";
 import { searchProducts, testFirebirdConnection } from "./firebird";
 
 // ─── Admin middleware ─────────────────────────────────────────────────────────
@@ -45,6 +48,35 @@ const usersRouter = router({
     return getUserById(input.id);
   }),
 
+  /**
+   * Cria um usuário local com autenticação por username/senha
+   */
+  createLocal: adminProcedure
+    .input(
+      z.object({
+        username: z.string().min(3, "Username deve ter pelo menos 3 caracteres"),
+        password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+        name: z.string().min(1, "Nome é obrigatório"),
+        role: z.enum(["user", "admin"]).default("user"),
+        canViewOtherQuotes: z.enum(["yes", "no"]).default("no"),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const existing = await getUserByUsername(input.username);
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "Este username já está em uso." });
+      }
+      const passwordHash = hashPassword(input.password);
+      await createLocalUser({
+        username: input.username,
+        passwordHash,
+        name: input.name,
+        role: input.role,
+        canViewOtherQuotes: input.canViewOtherQuotes,
+      });
+      return { success: true };
+    }),
+
   update: adminProcedure
     .input(
       z.object({
@@ -52,11 +84,18 @@ const usersRouter = router({
         name: z.string().optional(),
         email: z.string().email().optional(),
         role: z.enum(["user", "admin"]).optional(),
+        password: z.string().min(6).optional(),
+        canViewOtherQuotes: z.enum(["yes", "no"]).optional(),
+        active: z.enum(["yes", "no"]).optional(),
       })
     )
     .mutation(async ({ input }) => {
-      const { id, ...data } = input;
-      await updateUser(id, data);
+      const { id, password, ...data } = input;
+      const updateData: any = { ...data };
+      if (password) {
+        updateData.passwordHash = hashPassword(password);
+      }
+      await updateUser(id, updateData);
       return { success: true };
     }),
 
@@ -67,35 +106,6 @@ const usersRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Você não pode excluir sua própria conta." });
       }
       await deleteUser(input.id);
-      return { success: true };
-    }),
-
-  /**
-   * Cria um usuário manualmente pelo administrador.
-   * O usuário criado não terá senha própria — o acesso é feito via OAuth Manus.
-   * O openId deve ser o identificador Manus do usuário a ser adicionado.
-   */
-  create: adminProcedure
-    .input(
-      z.object({
-        openId: z.string().min(1, "openId é obrigatório"),
-        name: z.string().min(1, "Nome é obrigatório"),
-        email: z.string().email("E-mail inválido").optional(),
-        role: z.enum(["user", "admin"]).default("user"),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const existing = await getUserByOpenId(input.openId);
-      if (existing) {
-        throw new TRPCError({ code: "CONFLICT", message: "Já existe um usuário com este openId." });
-      }
-      await upsertUser({
-        openId: input.openId,
-        name: input.name,
-        email: input.email ?? null,
-        role: input.role,
-        lastSignedIn: new Date(),
-      });
       return { success: true };
     }),
 });
@@ -177,9 +187,17 @@ const quotesRouter = router({
     .query(async ({ input, ctx }) => {
       const quote = await getQuoteById(input.id);
       if (!quote) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
+      
+      // Usuário normal só vê seus próprios orçamentos
+      // Admin vê todos, mas pode ter restrição se canViewOtherQuotes = "no"
       if (ctx.user.role !== "admin" && quote.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" });
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acesso negado a este orçamento." });
       }
+      
+      if (ctx.user.role === "admin" && ctx.user.canViewOtherQuotes === "no" && quote.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para ver orçamentos de outros usuários." });
+      }
+      
       const items = await getQuoteItems(input.id);
       return { ...quote, items };
     }),
@@ -195,7 +213,7 @@ const quotesRouter = router({
           z.object({
             productCode: z.string(),
             productName: z.string(),
-            productReference: z.string().optional(),
+            productBrand: z.string().optional(),
             quantity: z.number().positive(),
             unitPrice: z.number().min(0),
           })
@@ -214,7 +232,7 @@ const quotesRouter = router({
         quoteId: id,
         productCode: item.productCode,
         productName: item.productName,
-        productReference: item.productReference || "",
+        productBrand: item.productBrand || "",
         quantity: item.quantity.toFixed(2),
         unitPrice: item.unitPrice.toFixed(2),
         totalPrice: (item.quantity * item.unitPrice).toFixed(2),
@@ -241,7 +259,7 @@ const quotesRouter = router({
             z.object({
               productCode: z.string(),
               productName: z.string(),
-              productReference: z.string().optional(),
+              productBrand: z.string().optional(),
               quantity: z.number().positive(),
               unitPrice: z.number().min(0),
             })
@@ -264,7 +282,7 @@ const quotesRouter = router({
           quoteId: id,
           productCode: item.productCode,
           productName: item.productName,
-          productReference: item.productReference || "",
+          productBrand: item.productBrand || "",
           quantity: item.quantity.toFixed(2),
           unitPrice: item.unitPrice.toFixed(2),
           totalPrice: (item.quantity * item.unitPrice).toFixed(2),

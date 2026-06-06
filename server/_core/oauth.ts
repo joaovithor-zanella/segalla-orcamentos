@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { verifyPassword } from "../localAuthManager";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -10,7 +11,53 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Express) {
-  // Rota de login local para desenvolvimento (sem OAuth)
+  // Rota POST de login local com username/senha
+  app.post("/api/local-login", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        res.status(400).json({ error: "Username e senha são obrigatórios" });
+        return;
+      }
+
+      // Busca usuário por username
+      const user = await db.getUserByUsername(username);
+      if (!user || !user.passwordHash) {
+        res.status(401).json({ error: "Username ou senha incorretos" });
+        return;
+      }
+
+      // Verifica se o usuário está ativo
+      if (user.active === "no") {
+        res.status(403).json({ error: "Usuário desativado" });
+        return;
+      }
+
+      // Verifica a senha
+      if (!verifyPassword(password, user.passwordHash)) {
+        res.status(401).json({ error: "Username ou senha incorretos" });
+        return;
+      }
+
+      // Cria sessão local
+      const sessionToken = await sdk.createSessionToken(user.openId || `local-user-${user.id}`, {
+        name: user.name || username,
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      // Atualiza último login (feito implicitamente no banco)
+
+      res.json({ success: true, user: { id: user.id, name: user.name, role: user.role } });
+    } catch (error) {
+      console.error("[Local Auth] Login failed", error);
+      res.status(500).json({ error: "Login falhou" });
+    }
+  });
+
+  // Rota GET de login local para desenvolvimento (sem OAuth)
   app.get("/api/local-login", async (req: Request, res: Response) => {
     try {
       // Em desenvolvimento, usa o usuário admin local
@@ -21,7 +68,7 @@ export function registerOAuthRoutes(app: Express) {
       }
 
       // Cria sessão local
-      const sessionToken = await sdk.createSessionToken(user.openId, {
+      const sessionToken = await sdk.createSessionToken(user.openId || "local-admin-user", {
         name: user.name || "Admin Local",
         expiresInMs: ONE_YEAR_MS,
       });

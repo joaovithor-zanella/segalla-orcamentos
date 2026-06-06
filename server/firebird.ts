@@ -15,59 +15,65 @@
  *   FIREBIRD_CHARSET=WIN1252          <- Charset (WIN1252 ou UTF8)
  *
  * ============================================================
- * CONFIGURAÇÃO DAS TABELAS DO FIREBIRD
+ * CONFIGURAÇÃO DAS 4 TABELAS DO FIREBIRD
  * ============================================================
  *
- * Ajuste as constantes abaixo para corresponder às tabelas e
- * campos do seu banco de dados Firebird:
+ * Seu banco de dados tem 4 tabelas diferentes:
+ * 1. TESTPRODUTOGERAL - Código e Descrição
+ * 2. TESTEESTOQUE - Código, Marca, Estoque
+ * 3. TESTPRODUTO - Código e Valor
+ * 4. TESTMARCA - Nome da Marca e Código da Marca
+ *
+ * As queries abaixo fazem JOINs para trazer todas as informações
+ * de forma coerente. Altere os nomes das tabelas e campos conforme necessário.
  */
 
 // ============================================================
-// NOME DA TABELA DE PRODUTOS NO FIREBIRD
-// Altere para o nome exato da sua tabela de produtos/peças
+// TABELAS DO FIREBIRD
 // ============================================================
-export const FB_TABLE_PRODUCTS = "PRODUTOS"; // <- ALTERE AQUI
+export const FB_TABLES = {
+  // Tabela com código e descrição do produto
+  PRODUCT_GENERAL: "TESTPRODUTOGERAL", // <- ALTERE AQUI se necessário
 
-// ============================================================
-// CAMPOS DA TABELA DE PRODUTOS
-// Altere cada valor para o nome exato do campo no Firebird
-// ============================================================
-export const FB_FIELDS = {
-  // Campo: código único do produto (ex: "COD_PRODUTO", "CODIGO", "ID_PRODUTO")
-  CODE: "CODIGO", // <- ALTERE AQUI
+  // Tabela com estoque e código da marca
+  STOCK: "TESTEESTOQUE", // <- ALTERE AQUI se necessário
 
-  // Campo: nome/descrição do produto (ex: "DESCRICAO", "NOME_PRODUTO", "DESC_PRODUTO")
-  NAME: "DESCRICAO", // <- ALTERE AQUI
+  // Tabela com código e preço do produto
+  PRODUCT_PRICE: "TESTPRODUTO", // <- ALTERE AQUI se necessário
 
-  // Campo: referência do fabricante (ex: "REFERENCIA", "REF_FABRICANTE", "COD_ORIGINAL")
-  REFERENCE: "REFERENCIA", // <- ALTERE AQUI
-
-  // Campo: preço de venda (ex: "PRECO_VENDA", "PRECO", "VLR_VENDA")
-  PRICE: "PRECO_VENDA", // <- ALTERE AQUI
-
-  // Campo: quantidade em estoque (ex: "ESTOQUE", "QTD_ESTOQUE", "SALDO")
-  STOCK: "ESTOQUE", // <- ALTERE AQUI
-
-  // Campo: unidade de medida (ex: "UNIDADE", "UN", "UNID") - opcional
-  UNIT: "UNIDADE", // <- ALTERE AQUI (ou deixe vazio "" se não existir)
-
-  // Campo: marca/fabricante (ex: "MARCA", "FABRICANTE") - opcional
-  BRAND: "MARCA", // <- ALTERE AQUI (ou deixe vazio "" se não existir)
+  // Tabela com nome e código da marca
+  BRAND: "TESTMARCA", // <- ALTERE AQUI se necessário
 };
 
 // ============================================================
-// CAMPOS ADICIONAIS PARA FILTROS (opcional)
-// Se quiser adicionar mais filtros, adicione campos aqui
+// CAMPOS DAS TABELAS
 // ============================================================
-export const FB_EXTRA_FILTERS = {
-  // Campo de categoria/grupo do produto - opcional
-  CATEGORY: "GRUPO", // <- ALTERE AQUI (ou deixe vazio "" para ignorar)
+export const FB_FIELDS = {
+  // TESTPRODUTOGERAL
+  PRODUCT_GENERAL: {
+    CODE: "CODIGO", // <- ALTERE AQUI se necessário
+    NAME: "DESCRICAO", // <- ALTERE AQUI se necessário
+  },
 
-  // Campo de status ativo/inativo - opcional
-  ACTIVE: "ATIVO", // <- ALTERE AQUI (ou deixe vazio "" para ignorar)
+  // TESTEESTOQUE
+  STOCK: {
+    CODE: "CODIGO", // <- ALTERE AQUI se necessário
+    BRAND_CODE: "CODIGO_MARCA", // <- ALTERE AQUI se necessário (código que referencia TESTMARCA)
+    QUANTITY: "ESTOQUE", // <- ALTERE AQUI se necessário
+    RESERVED: "RESERVADO", // <- ALTERE AQUI se necessário (deixe vazio "" se não existir)
+  },
 
-  // Valor que indica produto ativo no campo ACTIVE (ex: "S", "1", "T")
-  ACTIVE_VALUE: "S", // <- ALTERE AQUI
+  // TESTPRODUTO
+  PRODUCT_PRICE: {
+    CODE: "CODIGO", // <- ALTERE AQUI se necessário
+    PRICE: "VALOR", // <- ALTERE AQUI se necessário
+  },
+
+  // TESTMARCA
+  BRAND: {
+    CODE: "CODIGO", // <- ALTERE AQUI se necessário (deve corresponder a STOCK.BRAND_CODE)
+    NAME: "NOME", // <- ALTERE AQUI se necessário
+  },
 };
 
 // ============================================================
@@ -80,10 +86,8 @@ import Firebird from "node-firebird";
 export interface FirebirdProduct {
   code: string;
   name: string;
-  reference: string;
   price: number;
   stock: number;
-  unit: string;
   brand: string;
 }
 
@@ -162,7 +166,8 @@ export interface ProductSearchResult {
 
 /**
  * Busca produtos no Firebird com filtros e paginação.
- * Pesquisa por código, nome ou referência.
+ * Faz JOINs entre as 4 tabelas para trazer informações completas.
+ * Pesquisa por código ou nome.
  */
 export async function searchProducts(
   params: ProductSearchParams
@@ -172,63 +177,46 @@ export async function searchProducts(
   const offset = (page - 1) * pageSize;
   const search = (params.search || "").trim().toUpperCase();
 
+  const t = FB_TABLES;
   const f = FB_FIELDS;
-  const t = FB_TABLE_PRODUCTS;
-  const extra = FB_EXTRA_FILTERS;
 
   // Monta cláusula WHERE
   let whereClause = "";
   const queryParams: unknown[] = [];
 
-  const conditions: string[] = [];
-
-  // Filtro de produto ativo (se configurado)
-  if (extra.ACTIVE && extra.ACTIVE_VALUE) {
-    conditions.push(`${extra.ACTIVE} = ?`);
-    queryParams.push(extra.ACTIVE_VALUE);
-  }
-
-  // Filtro de busca por texto
   if (search) {
-    const searchConditions: string[] = [];
-    searchConditions.push(`UPPER(CAST(${f.CODE} AS VARCHAR(100))) LIKE ?`);
+    whereClause = `WHERE 
+      UPPER(CAST(PG.${f.PRODUCT_GENERAL.CODE} AS VARCHAR(100))) LIKE ? 
+      OR UPPER(CAST(PG.${f.PRODUCT_GENERAL.NAME} AS VARCHAR(300))) LIKE ?
+    `;
     queryParams.push(`%${search}%`);
-    searchConditions.push(`UPPER(CAST(${f.NAME} AS VARCHAR(300))) LIKE ?`);
     queryParams.push(`%${search}%`);
-    if (f.REFERENCE) {
-      searchConditions.push(`UPPER(CAST(${f.REFERENCE} AS VARCHAR(120))) LIKE ?`);
-      queryParams.push(`%${search}%`);
-    }
-    conditions.push(`(${searchConditions.join(" OR ")})`);
-  }
-
-  if (conditions.length > 0) {
-    whereClause = `WHERE ${conditions.join(" AND ")}`;
   }
 
   // Query de contagem total
-  const countSql = `SELECT COUNT(*) AS TOTAL FROM ${t} ${whereClause}`;
+  const countSql = `
+    SELECT COUNT(DISTINCT PG.${f.PRODUCT_GENERAL.CODE}) AS TOTAL
+    FROM ${t.PRODUCT_GENERAL} PG
+    LEFT JOIN ${t.STOCK} ST ON PG.${f.PRODUCT_GENERAL.CODE} = ST.${f.STOCK.CODE}
+    LEFT JOIN ${t.PRODUCT_PRICE} PP ON PG.${f.PRODUCT_GENERAL.CODE} = PP.${f.PRODUCT_PRICE.CODE}
+    LEFT JOIN ${t.BRAND} BR ON ST.${f.STOCK.BRAND_CODE} = BR.${f.BRAND.CODE}
+    ${whereClause}
+  `;
 
-  // Query de dados com paginação via ROWS (Firebird 2.5 syntax)
-  const firstRow = offset + 1;
-  const lastRow = offset + pageSize;
-
-  const selectFields = [
-    `${f.CODE} AS CODE`,
-    `${f.NAME} AS NAME`,
-    f.REFERENCE ? `${f.REFERENCE} AS REFERENCE` : `'' AS REFERENCE`,
-    `${f.PRICE} AS PRICE`,
-    `${f.STOCK} AS STOCK`,
-    f.UNIT ? `${f.UNIT} AS UNIT` : `'UN' AS UNIT`,
-    f.BRAND ? `${f.BRAND} AS BRAND` : `'' AS BRAND`,
-  ].join(", ");
-
+  // Query de dados com paginação via FIRST/SKIP (Firebird 2.5 syntax)
   const dataSql = `
     SELECT FIRST ${pageSize} SKIP ${offset}
-      ${selectFields}
-    FROM ${t}
+      PG.${f.PRODUCT_GENERAL.CODE} AS CODE,
+      PG.${f.PRODUCT_GENERAL.NAME} AS NAME,
+      COALESCE(PP.${f.PRODUCT_PRICE.PRICE}, 0) AS PRICE,
+      COALESCE(ST.${f.STOCK.QUANTITY}, 0) AS STOCK,
+      COALESCE(BR.${f.BRAND.NAME}, '') AS BRAND
+    FROM ${t.PRODUCT_GENERAL} PG
+    LEFT JOIN ${t.STOCK} ST ON PG.${f.PRODUCT_GENERAL.CODE} = ST.${f.STOCK.CODE}
+    LEFT JOIN ${t.PRODUCT_PRICE} PP ON PG.${f.PRODUCT_GENERAL.CODE} = PP.${f.PRODUCT_PRICE.CODE}
+    LEFT JOIN ${t.BRAND} BR ON ST.${f.STOCK.BRAND_CODE} = BR.${f.BRAND.CODE}
     ${whereClause}
-    ORDER BY ${f.NAME}
+    ORDER BY PG.${f.PRODUCT_GENERAL.NAME}
   `;
 
   try {
@@ -244,10 +232,8 @@ export async function searchProducts(
     const products: FirebirdProduct[] = dataResult.map((row) => ({
       code: toStr(row["CODE"]),
       name: toStr(row["NAME"]),
-      reference: toStr(row["REFERENCE"]),
       price: toNum(row["PRICE"]),
       stock: toNum(row["STOCK"]),
-      unit: toStr(row["UNIT"]) || "UN",
       brand: toStr(row["BRAND"]),
     }));
 
@@ -275,22 +261,25 @@ export async function searchProducts(
 
 /**
  * Busca um produto específico pelo código no Firebird.
+ * Faz JOINs entre as 4 tabelas para trazer informações completas.
  */
 export async function getProductByCode(code: string): Promise<FirebirdProduct | null> {
+  const t = FB_TABLES;
   const f = FB_FIELDS;
-  const t = FB_TABLE_PRODUCTS;
 
-  const selectFields = [
-    `${f.CODE} AS CODE`,
-    `${f.NAME} AS NAME`,
-    f.REFERENCE ? `${f.REFERENCE} AS REFERENCE` : `'' AS REFERENCE`,
-    `${f.PRICE} AS PRICE`,
-    `${f.STOCK} AS STOCK`,
-    f.UNIT ? `${f.UNIT} AS UNIT` : `'UN' AS UNIT`,
-    f.BRAND ? `${f.BRAND} AS BRAND` : `'' AS BRAND`,
-  ].join(", ");
-
-  const sql = `SELECT FIRST 1 ${selectFields} FROM ${t} WHERE ${f.CODE} = ?`;
+  const sql = `
+    SELECT FIRST 1
+      PG.${f.PRODUCT_GENERAL.CODE} AS CODE,
+      PG.${f.PRODUCT_GENERAL.NAME} AS NAME,
+      COALESCE(PP.${f.PRODUCT_PRICE.PRICE}, 0) AS PRICE,
+      COALESCE(ST.${f.STOCK.QUANTITY}, 0) AS STOCK,
+      COALESCE(BR.${f.BRAND.NAME}, '') AS BRAND
+    FROM ${t.PRODUCT_GENERAL} PG
+    LEFT JOIN ${t.STOCK} ST ON PG.${f.PRODUCT_GENERAL.CODE} = ST.${f.STOCK.CODE}
+    LEFT JOIN ${t.PRODUCT_PRICE} PP ON PG.${f.PRODUCT_GENERAL.CODE} = PP.${f.PRODUCT_PRICE.CODE}
+    LEFT JOIN ${t.BRAND} BR ON ST.${f.STOCK.BRAND_CODE} = BR.${f.BRAND.CODE}
+    WHERE PG.${f.PRODUCT_GENERAL.CODE} = ?
+  `;
 
   try {
     const result = await queryFirebird<Record<string, unknown>>(sql, [code]);
@@ -299,10 +288,8 @@ export async function getProductByCode(code: string): Promise<FirebirdProduct | 
     return {
       code: toStr(row["CODE"]),
       name: toStr(row["NAME"]),
-      reference: toStr(row["REFERENCE"]),
       price: toNum(row["PRICE"]),
       stock: toNum(row["STOCK"]),
-      unit: toStr(row["UNIT"]) || "UN",
       brand: toStr(row["BRAND"]),
     };
   } catch (error) {

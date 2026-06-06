@@ -28,7 +28,7 @@ import { toast } from "sonner";
 interface CartItem {
   productCode: string;
   productName: string;
-  productReference: string;
+  productBrand: string;
   quantity: number;
   unitPrice: number;
 }
@@ -88,7 +88,7 @@ export default function QuoteEditor() {
         existingQuote.items.map((item) => ({
           productCode: item.productCode,
           productName: item.productName,
-          productReference: item.productReference || "",
+          productBrand: item.productBrand || "",
           quantity: parseFloat(item.quantity),
           unitPrice: parseFloat(item.unitPrice),
         }))
@@ -116,7 +116,7 @@ export default function QuoteEditor() {
     setSearchTimeout(t);
   };
 
-  const addProduct = (product: { code: string; name: string; reference: string; price: number; stock: number }) => {
+  const addProduct = (product: { code: string; name: string; brand: string; price: number; stock: number }) => {
     if (product.stock <= 0) {
       toast.error("Produto sem estoque.");
       return;
@@ -130,7 +130,7 @@ export default function QuoteEditor() {
       setItems([...items, {
         productCode: product.code,
         productName: product.name,
-        productReference: product.reference,
+        productBrand: product.brand,
         quantity: 1,
         unitPrice: product.price,
       }]);
@@ -172,7 +172,7 @@ export default function QuoteEditor() {
       items: items.map((i) => ({
         productCode: i.productCode,
         productName: i.productName,
-        productReference: i.productReference,
+        productBrand: i.productBrand,
         quantity: i.quantity,
         unitPrice: i.unitPrice,
       })),
@@ -246,8 +246,8 @@ export default function QuoteEditor() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="font-mono text-xs text-muted-foreground">{product.code}</span>
-                                {product.reference && (
-                                  <span className="text-xs text-muted-foreground">· {product.reference}</span>
+                                {product.brand && (
+                                  <span className="text-xs text-muted-foreground">· {product.brand}</span>
                                 )}
                               </div>
                               <p className="text-sm font-medium truncate">{product.name}</p>

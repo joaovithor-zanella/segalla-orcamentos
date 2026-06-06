@@ -264,7 +264,7 @@ export default function QuoteView() {
                       <td className="px-4 py-3 font-mono text-xs">{item.productCode}</td>
                       <td className="px-4 py-3 font-medium">{item.productName}</td>
                       <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
-                        {item.productReference || "—"}
+                        {item.productBrand || "—"}
                       </td>
                       <td className="px-4 py-3 text-center">{parseFloat(item.quantity)}</td>
                       <td className="px-4 py-3 text-right">

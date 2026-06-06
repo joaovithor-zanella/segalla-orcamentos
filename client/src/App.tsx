@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { useAuth } from "./_core/hooks/useAuth";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
 import QuoteEditor from "./pages/QuoteEditor";
@@ -11,8 +12,23 @@ import QuotesList from "./pages/QuotesList";
 import QuoteView from "./pages/QuoteView";
 import AdminUsers from "./pages/AdminUsers";
 import AdminPayments from "./pages/AdminPayments";
+import Login from "./pages/Login";
 
-function Router() {
+function ProtectedRouter() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-segalla-red"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
   return (
     <Switch>
       {/* Dashboard */}
@@ -44,7 +60,7 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster richColors position="top-right" />
-          <Router />
+          <ProtectedRouter />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
