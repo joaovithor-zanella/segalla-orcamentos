@@ -39,6 +39,7 @@ export default function AdminUsers() {
   const { user: currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editUser, setEditUser] = useState<{
     id: number;
     name: string | null;
@@ -46,6 +47,13 @@ export default function AdminUsers() {
     role: "user" | "admin";
   } | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [newUser, setNewUser] = useState({
+    username: "",
+    password: "",
+    name: "",
+    role: "user" as "user" | "admin",
+    canViewOtherQuotes: "no" as "yes" | "no",
+  });
 
   // Redirect non-admins
   if (currentUser && currentUser.role !== "admin") {
@@ -55,6 +63,16 @@ export default function AdminUsers() {
 
   const { data: users, isLoading } = trpc.users.list.useQuery();
   const utils = trpc.useUtils();
+
+  const createMutation = trpc.users.createLocal.useMutation({
+    onSuccess: () => {
+      toast.success("Usuário criado com sucesso.");
+      utils.users.list.invalidate();
+      setShowCreateDialog(false);
+      setNewUser({ username: "", password: "", name: "", role: "user", canViewOtherQuotes: "no" });
+    },
+    onError: (err) => toast.error(`Erro: ${err.message}`),
+  });
 
   const updateMutation = trpc.users.update.useMutation({
     onSuccess: () => {
@@ -79,7 +97,8 @@ export default function AdminUsers() {
     const s = search.toLowerCase();
     return (
       (u.name || "").toLowerCase().includes(s) ||
-      (u.email || "").toLowerCase().includes(s)
+      (u.email || "").toLowerCase().includes(s) ||
+      (u.username || "").toLowerCase().includes(s)
     );
   });
 
@@ -96,12 +115,19 @@ export default function AdminUsers() {
               Gerencie os usuários do sistema
             </p>
           </div>
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            style={{ background: "var(--segalla-red)" }}
+            className="text-white"
+          >
+            + Novo Usuário
+          </Button>
         </div>
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome ou e-mail..."
+            placeholder="Buscar por nome, username ou e-mail..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -138,8 +164,9 @@ export default function AdminUsers() {
                   <thead>
                     <tr className="border-b bg-muted/40">
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Usuário</th>
-                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">E-mail</th>
+                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Username</th>
                       <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Papel</th>
+                      <th className="text-center px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">Ver Outros</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">Criado em</th>
                       <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Ações</th>
                     </tr>
@@ -159,8 +186,8 @@ export default function AdminUsers() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
-                          {u.email || "—"}
+                        <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell text-xs font-mono">
+                          {u.username || "—"}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {u.role === "admin" ? (
@@ -173,6 +200,13 @@ export default function AdminUsers() {
                               <User className="h-3 w-3" />
                               Usuário
                             </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center hidden md:table-cell text-xs">
+                          {u.canViewOtherQuotes === "yes" ? (
+                            <Badge variant="outline" className="bg-green-50">Sim</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50">Não</Badge>
                           )}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
@@ -213,6 +247,82 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Username</Label>
+              <Input
+                placeholder="username (sem espaços)"
+                value={newUser.username}
+                onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Senha</Label>
+              <Input
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nome Completo</Label>
+              <Input
+                placeholder="Nome do usuário"
+                value={newUser.name}
+                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Papel</Label>
+              <Select
+                value={newUser.role}
+                onValueChange={(val) => setNewUser({ ...newUser, role: val as "user" | "admin" })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Usuário</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Pode Ver Orçamentos de Outros?</Label>
+              <Select
+                value={newUser.canViewOtherQuotes}
+                onValueChange={(val) => setNewUser({ ...newUser, canViewOtherQuotes: val as "yes" | "no" })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">Não (Apenas seus orçamentos)</SelectItem>
+                  <SelectItem value="yes">Sim (Todos os orçamentos)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancelar</Button>
+            <Button
+              onClick={() => createMutation.mutate(newUser)}
+              disabled={createMutation.isPending || !newUser.username || !newUser.password || !newUser.name}
+              style={{ background: "var(--segalla-red)" }}
+            >
+              {createMutation.isPending ? "Criando..." : "Criar Usuário"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit dialog */}
       <Dialog open={editUser !== null} onOpenChange={() => setEditUser(null)}>
