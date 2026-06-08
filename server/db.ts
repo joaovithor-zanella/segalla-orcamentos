@@ -1,5 +1,6 @@
 import { eq, like, or, desc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { nanoid } from "nanoid";
 import {
   InsertUser,
   users,
@@ -99,7 +100,10 @@ export async function createLocalUser(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error('DB not available');
+  // Gera um openId único para o usuário local
+  const openId = `local-user-${nanoid(12)}`;
   const result = await db.insert(users).values({
+    openId,
     username: data.username,
     passwordHash: data.passwordHash,
     name: data.name,

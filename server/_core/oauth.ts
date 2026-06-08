@@ -40,7 +40,11 @@ export function registerOAuthRoutes(app: Express) {
       }
 
       // Cria sessão local
-      const sessionToken = await sdk.createSessionToken(user.openId || `local-user-${user.id}`, {
+      if (!user.openId) {
+        res.status(500).json({ error: "Erro interno: openId não configurado" });
+        return;
+      }
+      const sessionToken = await sdk.createSessionToken(user.openId, {
         name: user.name || username,
         expiresInMs: ONE_YEAR_MS,
       });

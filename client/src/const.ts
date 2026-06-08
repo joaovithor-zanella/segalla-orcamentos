@@ -5,9 +5,9 @@ export const getLoginUrl = () => {
   const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
   const appId = import.meta.env.VITE_APP_ID;
   
-  // Em desenvolvimento local sem OAuth, retorna URL local
+  // Em desenvolvimento local sem OAuth, retorna página de login local
   if (!oauthPortalUrl || !appId) {
-    return "/api/local-login";
+    return "/login";
   }
   
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
