@@ -9,14 +9,16 @@
 import { Router, Request, Response } from "express";
 import { loadQuoteExportData, exportQuotePDF, exportQuoteXLSX, exportQuoteDOCX } from "./export";
 import { sdk } from "./_core/sdk";
+import { canUserAccessQuote } from "./db";
 
 export function registerExportRoutes(app: Router) {
   const router = Router();
 
-  // Middleware: verify authentication
+  // Middleware: verify authentication and extract user
   const requireAuth = async (req: Request, res: Response, next: () => void) => {
     try {
-      await sdk.authenticateRequest(req);
+      const user = await sdk.authenticateRequest(req);
+      (req as any).user = user;
       next();
     } catch {
       res.status(401).json({ error: "Não autenticado." });
@@ -27,6 +29,20 @@ export function registerExportRoutes(app: Router) {
   router.get("/quote/:id/pdf", requireAuth, async (req: Request, res: Response) => {
     try {
       const quoteId = parseInt(req.params.id);
+      const user = (req as any).user;
+      
+      // Verifica permissão de acesso
+      const hasAccess = await canUserAccessQuote(
+        quoteId,
+        user.id,
+        user.role,
+        user.canViewOtherQuotes
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: "Você não tem permissão para exportar este orçamento." });
+        return;
+      }
+      
       const data = await loadQuoteExportData(quoteId);
       if (!data) {
         res.status(404).json({ error: "Orçamento não encontrado." });
@@ -46,6 +62,20 @@ export function registerExportRoutes(app: Router) {
   router.get("/quote/:id/xlsx", requireAuth, async (req: Request, res: Response) => {
     try {
       const quoteId = parseInt(req.params.id);
+      const user = (req as any).user;
+      
+      // Verifica permissão de acesso
+      const hasAccess = await canUserAccessQuote(
+        quoteId,
+        user.id,
+        user.role,
+        user.canViewOtherQuotes
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: "Você não tem permissão para exportar este orçamento." });
+        return;
+      }
+      
       const data = await loadQuoteExportData(quoteId);
       if (!data) {
         res.status(404).json({ error: "Orçamento não encontrado." });
@@ -65,6 +95,20 @@ export function registerExportRoutes(app: Router) {
   router.get("/quote/:id/docx", requireAuth, async (req: Request, res: Response) => {
     try {
       const quoteId = parseInt(req.params.id);
+      const user = (req as any).user;
+      
+      // Verifica permissão de acesso
+      const hasAccess = await canUserAccessQuote(
+        quoteId,
+        user.id,
+        user.role,
+        user.canViewOtherQuotes
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: "Você não tem permissão para exportar este orçamento." });
+        return;
+      }
+      
       const data = await loadQuoteExportData(quoteId);
       if (!data) {
         res.status(404).json({ error: "Orçamento não encontrado." });

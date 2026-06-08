@@ -138,6 +138,31 @@ export async function deleteUser(id: number) {
   await db.delete(users).where(eq(users.id, id));
 }
 
+// ─── QUOTE PERMISSIONS ───────────────────────────────────────────────────────
+
+export async function canUserAccessQuote(
+  quoteId: number,
+  userId: number,
+  userRole: 'user' | 'admin',
+  canViewOtherQuotes: 'yes' | 'no'
+): Promise<boolean> {
+  const quote = await getQuoteById(quoteId);
+  if (!quote) return false;
+
+  // Usuário normal só acessa seus próprios orçamentos
+  if (userRole === 'user') {
+    return quote.userId === userId;
+  }
+
+  // Admin: se canViewOtherQuotes = "no", só vê seus próprios
+  if (userRole === 'admin' && canViewOtherQuotes === 'no') {
+    return quote.userId === userId;
+  }
+
+  // Admin com canViewOtherQuotes = "yes" acessa todos
+  return true;
+}
+
 // ─── PAYMENT METHODS ─────────────────────────────────────────────────────────
 
 export async function getAllPaymentMethods(activeOnly = false) {
