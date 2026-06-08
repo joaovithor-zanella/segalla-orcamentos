@@ -57,31 +57,7 @@ export function registerOAuthRoutes(app: Express) {
     }
   });
 
-  // Rota GET de login local para desenvolvimento (sem OAuth)
-  app.get("/api/local-login", async (req: Request, res: Response) => {
-    try {
-      // Em desenvolvimento, usa o usuário admin local
-      const user = await db.getUserByOpenId("local-admin-user");
-      if (!user) {
-        res.status(500).json({ error: "Usuário local não encontrado" });
-        return;
-      }
 
-      // Cria sessão local
-      const sessionToken = await sdk.createSessionToken(user.openId || "local-admin-user", {
-        name: user.name || "Admin Local",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      res.redirect(302, "/");
-    } catch (error) {
-      console.error("[Local Auth] Login failed", error);
-      res.status(500).json({ error: "Login local falhou" });
-    }
-  });
 
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
