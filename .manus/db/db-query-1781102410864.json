@@ -1,0 +1,24 @@
+{
+  "query": "SELECT id, username, name, role, active FROM `users` ORDER BY createdAt DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user pi3ynY2af1Qiiwj.root --database DejDaqUSMBApBtqv9hxC7b --execute SELECT id, username, name, role, active FROM `users` ORDER BY createdAt DESC;",
+  "rows": [
+    {
+      "id": "2250001",
+      "username": "admin",
+      "name": "Administrador",
+      "role": "admin",
+      "active": "yes"
+    },
+    {
+      "id": "1",
+      "username": "NULL",
+      "name": "joão vithor gonçalves zanella",
+      "role": "admin",
+      "active": "yes"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tusername\tname\trole\tactive\n2250001\tadmin\tAdministrador\tadmin\tyes\n1\tNULL\tjoão vithor gonçalves zanella\tadmin\tyes\n",
+  "stderr": "",
+  "execution_time_ms": 273
+}

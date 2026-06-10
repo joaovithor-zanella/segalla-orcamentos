@@ -24,6 +24,7 @@ export default function Login() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
+        credentials: "include", // Enviar cookies com a requisição
       });
 
       if (!response.ok) {
@@ -32,7 +33,9 @@ export default function Login() {
         return;
       }
 
-      // Login bem-sucedido, redireciona para home
+      // Login bem-sucedido, aguardar um pouco para o cookie ser processado
+      // e depois redirecionar para home
+      await new Promise(resolve => setTimeout(resolve, 100));
       setLocation("/");
     } catch (error) {
       toast.error("Erro ao fazer login");
