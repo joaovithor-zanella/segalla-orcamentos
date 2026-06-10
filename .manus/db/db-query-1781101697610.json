@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE `users` SET `passwordHash` = 'a593f57b90ef30c32b7c595aab72ceda:6c07c9ec9b9c4fce460d3ba317ef1108996d20635854a77c61cfd579529a3d1b6ebe2783f20bce4e93d4339fb1a83d7a5e3b6fe7a0557fcae5a450abba83ac91' WHERE username = 'admin';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user pi3ynY2af1Qiiwj.root --database DejDaqUSMBApBtqv9hxC7b --execute UPDATE `users` SET `passwordHash` = 'a593f57b90ef30c32b7c595aab72ceda:6c07c9ec9b9c4fce460d3ba317ef1108996d20635854a77c61cfd579529a3d1b6ebe2783f20bce4e93d4339fb1a83d7a5e3b6fe7a0557fcae5a450abba83ac91' WHERE username = 'admin';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 328
+}

@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE `users` ADD COLUMN `active` ENUM('yes', 'no') DEFAULT 'yes' NOT NULL COMMENT 'Se o usuário está ativo' AFTER `canViewOtherQuotes`;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user pi3ynY2af1Qiiwj.root --database DejDaqUSMBApBtqv9hxC7b --execute ALTER TABLE `users` ADD COLUMN `active` ENUM('yes', 'no') DEFAULT 'yes' NOT NULL COMMENT 'Se o usuário está ativo' AFTER `canViewOtherQuotes`;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1060 (42S21) at line 1: Duplicate column name 'active'"
+  ]
+}

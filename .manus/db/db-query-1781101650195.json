@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO `users` (\n  `openId`,\n  `username`,\n  `passwordHash`,\n  `name`,\n  `email`,\n  `loginMethod`,\n  `role`,\n  `canViewOtherQuotes`,\n  `active`,\n  `createdAt`,\n  `updatedAt`,\n  `lastSignedIn`\n) VALUES (\n  'local-admin-segalla',\n  'admin',\n  '$2b$10$3pXQhXvP7Z8qK9mL2nR5dOmN8pQ7rS6tU5vW4xY3zZ2aB1cD0eF9m',\n  'Administrador',\n  'admin@segalla.com.br',\n  'local',\n  'admin',\n  'yes',\n  'yes',\n  NOW(),\n  NOW(),\n  NOW()\n) ON DUPLICATE KEY UPDATE \n  `passwordHash` = '$2b$10$3pXQhXvP7Z8qK9mL2nR5dOmN8pQ7rS6tU5vW4xY3zZ2aB1cD0eF9m',\n  `updatedAt` = NOW();",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user pi3ynY2af1Qiiwj.root --database DejDaqUSMBApBtqv9hxC7b --execute INSERT INTO `users` (\n  `openId`,\n  `username`,\n  `passwordHash`,\n  `name`,\n  `email`,\n  `loginMethod`,\n  `role`,\n  `canViewOtherQuotes`,\n  `active`,\n  `createdAt`,\n  `updatedAt`,\n  `lastSignedIn`\n) VALUES (\n  'local-admin-segalla',\n  'admin',\n  '$2b$10$3pXQhXvP7Z8qK9mL2nR5dOmN8pQ7rS6tU5vW4xY3zZ2aB1cD0eF9m',\n  'Administrador',\n  'admin@segalla.com.br',\n  'local',\n  'admin',\n  'yes',\n  'yes',\n  NOW(),\n  NOW(),\n  NOW()\n) ON DUPLICATE KEY UPDATE \n  `passwordHash` = '$2b$10$3pXQhXvP7Z8qK9mL2nR5dOmN8pQ7rS6tU5vW4xY3zZ2aB1cD0eF9m',\n  `updatedAt` = NOW();",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 278
+}
