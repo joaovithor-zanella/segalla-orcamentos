@@ -48,6 +48,22 @@ export type PaymentMethod = typeof paymentMethods.$inferSelect;
 export type InsertPaymentMethod = typeof paymentMethods.$inferInsert;
 
 /**
+ * Informações de veículo associadas aos orçamentos.
+ */
+export const vehicleInfo = mysqlTable("vehicle_info", {
+  id: int("id").autoincrement().primaryKey(),
+  quoteId: int("quoteId").unique(),
+  plate: varchar("plate", { length: 20 }), // Placa do veículo
+  model: varchar("model", { length: 100 }), // Modelo do veículo
+  year: int("year"), // Ano do veículo
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VehicleInfo = typeof vehicleInfo.$inferSelect;
+export type InsertVehicleInfo = typeof vehicleInfo.$inferInsert;
+
+/**
  * Orçamentos criados pelos usuários.
  */
 export const quotes = mysqlTable("quotes", {

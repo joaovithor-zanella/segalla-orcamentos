@@ -89,6 +89,8 @@ export interface FirebirdProduct {
   price: number;
   stock: number;
   brand: string;
+  reference?: string; // Referência do produto
+  manufacturerCode?: string; // Código de fabricação
 }
 
 function getFirebirdOptions(): Record<string, unknown> {
@@ -151,6 +153,9 @@ function toNum(val: unknown): number {
 
 export interface ProductSearchParams {
   search?: string;
+  searchField?: "all" | "code" | "name" | "reference" | "brand" | "manufacturerCode"; // Campo para pesquisa
+  sortBy?: "name" | "price"; // Campo para ordenação
+  sortOrder?: "asc" | "desc"; // Ordem de classificação
   page?: number;
   pageSize?: number;
 }
@@ -167,7 +172,7 @@ export interface ProductSearchResult {
 /**
  * Busca produtos no Firebird com filtros e paginação.
  * Faz JOINs entre as 4 tabelas para trazer informações completas.
- * Pesquisa por código ou nome.
+ * Suporta pesquisa avançada em múltiplos campos e ordenação.
  */
 export async function searchProducts(
   params: ProductSearchParams
@@ -176,21 +181,57 @@ export async function searchProducts(
   const pageSize = Math.min(100, Math.max(1, params.pageSize || 20));
   const offset = (page - 1) * pageSize;
   const search = (params.search || "").trim().toUpperCase();
+  const searchField = params.searchField || "all";
+  const sortBy = params.sortBy || "name";
+  const sortOrder = params.sortOrder || "asc";
 
   const t = FB_TABLES;
   const f = FB_FIELDS;
 
-  // Monta cláusula WHERE
+  // Monta cláusula WHERE com base no campo de pesquisa
   let whereClause = "";
   const queryParams: unknown[] = [];
 
   if (search) {
-    whereClause = `WHERE 
-      UPPER(CAST(PG.${f.PRODUCT_GENERAL.CODE} AS VARCHAR(100))) LIKE ? 
-      OR UPPER(CAST(PG.${f.PRODUCT_GENERAL.NAME} AS VARCHAR(300))) LIKE ?
-    `;
-    queryParams.push(`%${search}%`);
-    queryParams.push(`%${search}%`);
+    const conditions: string[] = [];
+
+    if (searchField === "all" || searchField === "code") {
+      conditions.push(`UPPER(CAST(PG.${f.PRODUCT_GENERAL.CODE} AS VARCHAR(100))) LIKE ?`);
+      queryParams.push(`%${search}%`);
+    }
+
+    if (searchField === "all" || searchField === "name") {
+      conditions.push(`UPPER(CAST(PG.${f.PRODUCT_GENERAL.NAME} AS VARCHAR(300))) LIKE ?`);
+      if (searchField === "all") {
+        queryParams.push(`%${search}%`);
+      } else {
+        queryParams.push(`%${search}%`);
+      }
+    }
+
+    if (searchField === "all" || searchField === "brand") {
+      conditions.push(`UPPER(CAST(BR.${f.BRAND.NAME} AS VARCHAR(120))) LIKE ?`);
+      if (searchField === "all") {
+        queryParams.push(`%${search}%`);
+      } else {
+        queryParams.push(`%${search}%`);
+      }
+    }
+
+    // Nota: reference e manufacturerCode não existem no Firebird atual
+    // Eles podem ser adicionados no futuro quando o schema for atualizado
+
+    if (conditions.length > 0) {
+      whereClause = `WHERE ${conditions.join(" OR ")}`;
+    }
+  }
+
+  // Monta cláusula ORDER BY
+  let orderClause = `ORDER BY PG.${f.PRODUCT_GENERAL.NAME} ASC`;
+  if (sortBy === "price") {
+    orderClause = `ORDER BY COALESCE(PP.${f.PRODUCT_PRICE.PRICE}, 0) ${sortOrder.toUpperCase()}`;
+  } else {
+    orderClause = `ORDER BY PG.${f.PRODUCT_GENERAL.NAME} ${sortOrder.toUpperCase()}`;
   }
 
   // Query de contagem total
@@ -216,7 +257,7 @@ export async function searchProducts(
     LEFT JOIN ${t.PRODUCT_PRICE} PP ON PG.${f.PRODUCT_GENERAL.CODE} = PP.${f.PRODUCT_PRICE.CODE}
     LEFT JOIN ${t.BRAND} BR ON ST.${f.STOCK.BRAND_CODE} = BR.${f.BRAND.CODE}
     ${whereClause}
-    ORDER BY PG.${f.PRODUCT_GENERAL.NAME}
+    ${orderClause}
   `;
 
   try {

@@ -7,9 +7,11 @@ import {
   paymentMethods,
   quotes,
   quoteItems,
+  vehicleInfo,
   InsertPaymentMethod,
   InsertQuote,
   InsertQuoteItem,
+  InsertVehicleInfo,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -339,4 +341,46 @@ export async function recalcQuoteTotal(quoteId: number) {
     .set({ totalAmount: total.toFixed(2), updatedAt: new Date() })
     .where(eq(quotes.id, quoteId));
   return total;
+}
+
+// ─── VEHICLE INFO ────────────────────────────────────────────────────────────
+
+export async function createOrUpdateVehicleInfo(data: InsertVehicleInfo) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  
+  // Verifica se já existe informação de veículo para este orçamento
+  const existing = await db
+    .select()
+    .from(vehicleInfo)
+    .where(eq(vehicleInfo.quoteId, data.quoteId!))
+    .limit(1);
+  
+  if (existing.length > 0) {
+    // Atualiza
+    await db
+      .update(vehicleInfo)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(vehicleInfo.quoteId, data.quoteId!));
+  } else {
+    // Cria novo
+    await db.insert(vehicleInfo).values(data);
+  }
+}
+
+export async function getVehicleInfoByQuoteId(quoteId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(vehicleInfo)
+    .where(eq(vehicleInfo.quoteId, quoteId))
+    .limit(1);
+  return result[0] || null;
+}
+
+export async function deleteVehicleInfo(quoteId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(vehicleInfo).where(eq(vehicleInfo.quoteId, quoteId));
 }

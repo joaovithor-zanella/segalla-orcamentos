@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `vehicle_info` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`quoteId` int,\n\t`plate` varchar(20),\n\t`model` varchar(100),\n\t`year` int,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `vehicle_info_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `vehicle_info_quoteId_unique` UNIQUE(`quoteId`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user pi3ynY2af1Qiiwj.root --database DejDaqUSMBApBtqv9hxC7b --execute CREATE TABLE `vehicle_info` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`quoteId` int,\n\t`plate` varchar(20),\n\t`model` varchar(100),\n\t`year` int,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `vehicle_info_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `vehicle_info_quoteId_unique` UNIQUE(`quoteId`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 343
+}

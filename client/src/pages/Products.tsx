@@ -3,6 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import {
   Search,
@@ -14,6 +21,8 @@ import {
   Wifi,
   WifiOff,
   Plus,
+  Filter,
+  Truck,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -27,16 +36,38 @@ interface CartItem {
   unitPrice: number;
 }
 
+interface VehicleInfo {
+  plate: string;
+  model: string;
+  year: string;
+}
+
 export default function Products() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchField, setSearchField] = useState<"all" | "code" | "name" | "reference" | "brand" | "manufacturerCode">("all");
+  const [sortBy, setSortBy] = useState<"name" | "price">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo>({
+    plate: "",
+    model: "",
+    year: "",
+  });
 
   const { data, isLoading, error } = trpc.products.search.useQuery(
-    { search: debouncedSearch, page, pageSize: 20 },
+    {
+      search: debouncedSearch,
+      searchField,
+      sortBy,
+      sortOrder,
+      page,
+      pageSize: 20,
+    },
     {}
   );
 
@@ -89,6 +120,9 @@ export default function Products() {
       return;
     }
     sessionStorage.setItem("quote_cart", JSON.stringify(cart));
+    if (showVehicleForm && (vehicleInfo.plate || vehicleInfo.model || vehicleInfo.year)) {
+      sessionStorage.setItem("quote_vehicle", JSON.stringify(vehicleInfo));
+    }
     setLocation("/orcamentos/novo");
   };
 
@@ -106,7 +140,7 @@ export default function Products() {
           <div>
             <h1 className="text-2xl font-bold">Catálogo de Produtos</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Busque produtos por código, nome ou referência
+              Busque produtos por código, nome, marca, referência ou código de fabricação
             </p>
           </div>
           {cart.length > 0 && (
@@ -121,18 +155,115 @@ export default function Products() {
           )}
         </div>
 
-        {/* Search bar */}
+        {/* Search and Filter Bar */}
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-4 space-y-4">
+            {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por código, nome ou referência..."
+                placeholder="Digite o que deseja buscar..."
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10 h-11 text-base"
               />
             </div>
+
+            {/* Filter Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {/* Search Field */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Buscar em</label>
+                <Select value={searchField} onValueChange={(value: any) => setSearchField(value)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os campos</SelectItem>
+                    <SelectItem value="code">Código</SelectItem>
+                    <SelectItem value="name">Nome</SelectItem>
+                    <SelectItem value="brand">Marca</SelectItem>
+                    <SelectItem value="reference">Referência</SelectItem>
+                    <SelectItem value="manufacturerCode">Código de Fabricação</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort By */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Ordenar por</label>
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Nome</SelectItem>
+                    <SelectItem value="price">Preço</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort Order */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Ordem</label>
+                <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asc">Crescente</SelectItem>
+                    <SelectItem value="desc">Decrescente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Vehicle Info Toggle */}
+              <div className="flex items-end">
+                <Button
+                  variant={showVehicleForm ? "default" : "outline"}
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => setShowVehicleForm(!showVehicleForm)}
+                >
+                  <Truck className="h-4 w-4" />
+                  Veículo
+                </Button>
+              </div>
+            </div>
+
+            {/* Vehicle Info Form */}
+            {showVehicleForm && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Placa</label>
+                  <Input
+                    placeholder="Ex: ABC-1234"
+                    value={vehicleInfo.plate}
+                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, plate: e.target.value })}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Modelo</label>
+                  <Input
+                    placeholder="Ex: Corolla"
+                    value={vehicleInfo.model}
+                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, model: e.target.value })}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Ano</label>
+                  <Input
+                    placeholder="Ex: 2020"
+                    type="number"
+                    value={vehicleInfo.year}
+                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, year: e.target.value })}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -229,8 +360,7 @@ export default function Products() {
                     <tr className="border-b bg-muted/40">
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Código</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Descrição</th>
-                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">Referência</th>
-                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Marca</th>
+                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">Marca</th>
                       <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Preço</th>
                       <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Estoque</th>
                       <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Ação</th>
@@ -249,9 +379,6 @@ export default function Products() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-medium text-foreground">{product.name}</div>
-                            {product.brand && (
-                              <div className="text-xs text-muted-foreground">{product.brand}</div>
-                            )}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                             {product.brand || "—"}

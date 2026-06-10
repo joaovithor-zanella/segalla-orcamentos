@@ -26,6 +26,9 @@ import {
   getQuoteItems,
   replaceQuoteItems,
   recalcQuoteTotal,
+  createOrUpdateVehicleInfo,
+  getVehicleInfoByQuoteId,
+  deleteVehicleInfo,
 } from "./db";
 import { hashPassword, verifyPassword } from "./localAuthManager";
 import { searchProducts, testFirebirdConnection } from "./firebird";
@@ -160,6 +163,9 @@ const productsRouter = router({
     .input(
       z.object({
         search: z.string().optional(),
+        searchField: z.enum(["all", "code", "name", "reference", "brand", "manufacturerCode"]).optional(),
+        sortBy: z.enum(["name", "price"]).optional(),
+        sortOrder: z.enum(["asc", "desc"]).optional(),
         page: z.number().optional(),
         pageSize: z.number().optional(),
       })
@@ -304,6 +310,41 @@ const quotesRouter = router({
       }
       await deleteQuote(input.id);
       return { success: true };
+    }),
+
+  setVehicleInfo: protectedProcedure
+    .input(
+      z.object({
+        quoteId: z.number(),
+        plate: z.string().optional(),
+        model: z.string().optional(),
+        year: z.number().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const quote = await getQuoteById(input.quoteId);
+      if (!quote) throw new TRPCError({ code: "NOT_FOUND" });
+      if (ctx.user.role !== "admin" && quote.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      await createOrUpdateVehicleInfo({
+        quoteId: input.quoteId,
+        plate: input.plate,
+        model: input.model,
+        year: input.year,
+      });
+      return { success: true };
+    }),
+
+  getVehicleInfo: protectedProcedure
+    .input(z.object({ quoteId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const quote = await getQuoteById(input.quoteId);
+      if (!quote) throw new TRPCError({ code: "NOT_FOUND" });
+      if (ctx.user.role !== "admin" && quote.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      return getVehicleInfoByQuoteId(input.quoteId);
     }),
 });
 
