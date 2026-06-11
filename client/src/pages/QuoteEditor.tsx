@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   ArrowLeft,
   FileText,
+  Truck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
@@ -31,6 +32,12 @@ interface CartItem {
   productBrand: string;
   quantity: number;
   unitPrice: number;
+}
+
+interface VehicleInfo {
+  plate?: string;
+  model?: string;
+  year?: number;
 }
 
 export default function QuoteEditor() {
@@ -48,6 +55,11 @@ export default function QuoteEditor() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo>({
+    plate: "",
+    model: "",
+    year: undefined,
+  });
 
   const { data: paymentMethods } = trpc.paymentMethods.list.useQuery({ activeOnly: true });
   const { data: existingQuote } = trpc.quotes.getById.useQuery(
@@ -58,12 +70,25 @@ export default function QuoteEditor() {
     { search: debouncedSearch, pageSize: 10 },
     { enabled: debouncedSearch.length >= 2 }
   );
+  const { data: existingVehicle } = trpc.quotes.getVehicleInfo.useQuery(
+    { quoteId: quoteId! },
+    { enabled: isEditing && !!quoteId }
+  );
 
   const utils = trpc.useUtils();
   const createMutation = trpc.quotes.create.useMutation({
     onSuccess: (data) => {
       toast.success(`Orçamento #${data.number} criado com sucesso!`);
       utils.quotes.list.invalidate();
+      // Save vehicle info if provided
+      if (vehicleInfo.plate || vehicleInfo.model || vehicleInfo.year) {
+        trpc.quotes.setVehicleInfo.useMutation().mutate({
+          quoteId: data.id,
+          plate: vehicleInfo.plate,
+          model: vehicleInfo.model,
+          year: vehicleInfo.year,
+        });
+      }
       setLocation(`/orcamentos/${data.id}`);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
@@ -73,6 +98,15 @@ export default function QuoteEditor() {
       toast.success("Orçamento atualizado com sucesso!");
       utils.quotes.list.invalidate();
       if (quoteId) utils.quotes.getById.invalidate({ id: quoteId });
+      // Save vehicle info if provided
+      if (quoteId && (vehicleInfo.plate || vehicleInfo.model || vehicleInfo.year)) {
+        trpc.quotes.setVehicleInfo.useMutation().mutate({
+          quoteId,
+          plate: vehicleInfo.plate,
+          model: vehicleInfo.model,
+          year: vehicleInfo.year,
+        });
+      }
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
@@ -95,6 +129,17 @@ export default function QuoteEditor() {
       );
     }
   }, [existingQuote]);
+
+  // Load vehicle info from existing quote
+  useEffect(() => {
+    if (existingVehicle) {
+      setVehicleInfo({
+        plate: existingVehicle.plate || "",
+        model: existingVehicle.model || "",
+        year: existingVehicle.year || undefined,
+      });
+    }
+  }, [existingVehicle]);
 
   // Load cart from sessionStorage (when coming from Products page)
   useEffect(() => {
@@ -286,158 +331,194 @@ export default function QuoteEditor() {
                   <ShoppingCart className="h-4 w-4" />
                   Itens do Orçamento
                   {items.length > 0 && (
-                    <span className="text-sm font-normal text-muted-foreground">
-                      ({items.length} item{items.length !== 1 ? "s" : ""})
-                    </span>
+                    <span className="text-sm font-normal text-muted-foreground">({items.length})</span>
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent>
                 {items.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
-                    <ShoppingCart className="h-10 w-10 opacity-30" />
-                    <p className="text-sm">Nenhum produto adicionado.</p>
-                  </div>
+                  <p className="text-sm text-muted-foreground text-center py-6">Nenhum item adicionado ainda.</p>
                 ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-muted/40">
-                            <th className="text-left px-4 py-2 font-semibold text-muted-foreground">Produto</th>
-                            <th className="text-center px-3 py-2 font-semibold text-muted-foreground w-24">Qtd</th>
-                            <th className="text-right px-3 py-2 font-semibold text-muted-foreground w-32">Preço Unit.</th>
-                            <th className="text-right px-3 py-2 font-semibold text-muted-foreground w-32">Total</th>
-                            <th className="w-10 px-2" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map((item) => (
-                            <tr key={item.productCode} className="border-b last:border-0">
-                              <td className="px-4 py-3">
-                                <div className="font-medium">{item.productName}</div>
-                                <div className="text-xs text-muted-foreground font-mono">{item.productCode}</div>
-                              </td>
-                              <td className="px-3 py-3">
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  value={item.quantity}
-                                  onChange={(e) => updateQuantity(item.productCode, parseFloat(e.target.value) || 0)}
-                                  className="h-8 text-center w-20 mx-auto"
-                                />
-                              </td>
-                              <td className="px-3 py-3">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={item.unitPrice}
-                                  onChange={(e) => updatePrice(item.productCode, parseFloat(e.target.value) || 0)}
-                                  className="h-8 text-right w-28 ml-auto"
-                                />
-                              </td>
-                              <td className="px-3 py-3 text-right font-semibold">
-                                R$ {(item.quantity * item.unitPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                              </td>
-                              <td className="px-2 py-3">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => removeItem(item.productCode)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="flex justify-end px-4 py-3 border-t bg-muted/20">
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Total do Orçamento</p>
-                        <p className="text-2xl font-bold" style={{ color: "var(--segalla-red)" }}>
-                          R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </p>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {items.map((item, idx) => (
+                      <div key={`${item.productCode}-${idx}`} className="flex gap-3 p-3 bg-muted/30 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-mono text-xs text-muted-foreground">{item.productCode}</p>
+                          <p className="font-medium text-sm truncate">{item.productName}</p>
+                          {item.productBrand && (
+                            <p className="text-xs text-muted-foreground">{item.productBrand}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.productCode, parseFloat(e.target.value) || 1)}
+                            className="w-16 h-8 text-sm"
+                          />
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) => updatePrice(item.productCode, parseFloat(e.target.value) || 0)}
+                            className="w-20 h-8 text-sm"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeItem(item.productCode)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Right: Details */}
+          {/* Right: Customer & Summary */}
           <div className="space-y-4">
+            {/* Customer Info */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Dados do Cliente</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Nome do Cliente</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="customerName" className="text-sm">Nome</Label>
                   <Input
-                    placeholder="Nome da oficina ou cliente"
+                    id="customerName"
+                    placeholder="Nome do cliente"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
+                    className="h-9"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Telefone</Label>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customerPhone" className="text-sm">Telefone</Label>
                   <Input
-                    placeholder="(00) 00000-0000"
+                    id="customerPhone"
+                    placeholder="(11) 99999-9999"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod" className="text-sm">Forma de Pagamento</Label>
+                  <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                    <SelectTrigger id="paymentMethod" className="h-9">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods?.map((method) => (
+                        <SelectItem key={method.id} value={String(method.id)}>
+                          {method.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Vehicle Info */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Truck className="h-4 w-4" />
+                  Veículo (Opcional)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="plate" className="text-xs">Placa</Label>
+                  <Input
+                    id="plate"
+                    placeholder="Ex: ABC-1234"
+                    value={vehicleInfo.plate || ""}
+                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, plate: e.target.value })}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="model" className="text-xs">Modelo</Label>
+                  <Input
+                    id="model"
+                    placeholder="Ex: Corolla"
+                    value={vehicleInfo.model || ""}
+                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, model: e.target.value })}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="year" className="text-xs">Ano</Label>
+                  <Input
+                    id="year"
+                    placeholder="Ex: 2020"
+                    type="number"
+                    value={vehicleInfo.year || ""}
+                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, year: e.target.value ? parseInt(e.target.value) : undefined })}
+                    className="h-8 text-sm"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Forma de Pagamento</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods?.map((pm) => (
-                      <SelectItem key={pm.id} value={String(pm.id)}>
-                        {pm.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-
+            {/* Observations */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Observações</CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
-                  placeholder="Observações, condições especiais, prazo de entrega..."
+                  placeholder="Adicione observações sobre o orçamento..."
                   value={observations}
                   onChange={(e) => setObservations(e.target.value)}
-                  rows={4}
+                  className="resize-none h-24 text-sm"
                 />
               </CardContent>
             </Card>
 
-            <Button
-              className="w-full gap-2 h-11"
-              onClick={handleSave}
-              disabled={isSaving || items.length === 0}
-              style={{ background: "var(--segalla-red)" }}
-            >
-              <Save className="h-4 w-4" />
-              {isSaving ? "Salvando..." : isEditing ? "Salvar Alterações" : "Criar Orçamento"}
-            </Button>
+            {/* Summary & Save */}
+            <Card className="border-2" style={{ borderColor: "var(--segalla-blue)" }}>
+              <CardContent className="pt-6 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal:</span>
+                    <span className="font-medium">
+                      R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                    <span>Total:</span>
+                    <span style={{ color: "var(--segalla-red)" }}>
+                      R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving || items.length === 0}
+                  className="w-full gap-2"
+                  style={{ background: "var(--segalla-red)" }}
+                >
+                  <Save className="h-4 w-4" />
+                  {isSaving ? "Salvando..." : isEditing ? "Atualizar Orçamento" : "Criar Orçamento"}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

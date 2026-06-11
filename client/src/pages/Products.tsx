@@ -22,7 +22,7 @@ import {
   WifiOff,
   Plus,
   Filter,
-  Truck,
+
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -36,12 +36,6 @@ interface CartItem {
   unitPrice: number;
 }
 
-interface VehicleInfo {
-  plate: string;
-  model: string;
-  year: string;
-}
-
 export default function Products() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
@@ -52,12 +46,6 @@ export default function Products() {
   const [page, setPage] = useState(1);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [showVehicleForm, setShowVehicleForm] = useState(false);
-  const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo>({
-    plate: "",
-    model: "",
-    year: "",
-  });
 
   const { data, isLoading, error } = trpc.products.search.useQuery(
     {
@@ -120,9 +108,6 @@ export default function Products() {
       return;
     }
     sessionStorage.setItem("quote_cart", JSON.stringify(cart));
-    if (showVehicleForm && (vehicleInfo.plate || vehicleInfo.model || vehicleInfo.year)) {
-      sessionStorage.setItem("quote_vehicle", JSON.stringify(vehicleInfo));
-    }
     setLocation("/orcamentos/novo");
   };
 
@@ -170,7 +155,7 @@ export default function Products() {
             </div>
 
             {/* Filter Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Search Field */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Buscar em</label>
@@ -217,53 +202,7 @@ export default function Products() {
                 </Select>
               </div>
 
-              {/* Vehicle Info Toggle */}
-              <div className="flex items-end">
-                <Button
-                  variant={showVehicleForm ? "default" : "outline"}
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={() => setShowVehicleForm(!showVehicleForm)}
-                >
-                  <Truck className="h-4 w-4" />
-                  Veículo
-                </Button>
-              </div>
             </div>
-
-            {/* Vehicle Info Form */}
-            {showVehicleForm && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Placa</label>
-                  <Input
-                    placeholder="Ex: ABC-1234"
-                    value={vehicleInfo.plate}
-                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, plate: e.target.value })}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Modelo</label>
-                  <Input
-                    placeholder="Ex: Corolla"
-                    value={vehicleInfo.model}
-                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, model: e.target.value })}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">Ano</label>
-                  <Input
-                    placeholder="Ex: 2020"
-                    type="number"
-                    value={vehicleInfo.year}
-                    onChange={(e) => setVehicleInfo({ ...vehicleInfo, year: e.target.value })}
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
