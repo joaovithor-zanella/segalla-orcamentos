@@ -163,17 +163,22 @@ const productsRouter = router({
     .input(
       z.object({
         search: z.string().optional(),
-        searchField: z.enum(["all", "code", "name", "reference", "brand", "manufacturerCode"]).optional(),
+        searchField: z.enum(["all", "code", "name", "reference", "brand", "factoryCode"]).optional(),
         sortBy: z.enum(["name", "price"]).optional(),
         sortOrder: z.enum(["asc", "desc"]).optional(),
         page: z.number().optional(),
         pageSize: z.number().optional(),
-        companyId: z.number().int().min(1).max(5).optional(), // Filtrar por empresa (1-5)
+        companyFilter: z.string().optional(), // Filtrar por empresa (string: "1", "2", etc)
       })
     )
     .query(async ({ input }) => {
       return searchProducts(input);
     }),
+
+  getAvailableCompanies: protectedProcedure.query(async () => {
+    const { getAvailableCompanies } = await import("./firebird");
+    return getAvailableCompanies();
+  }),
 
   testConnection: adminProcedure.query(async () => {
     return testFirebirdConnection();

@@ -35,20 +35,20 @@ interface CartItem {
   quantity: number;
   unitPrice: number;
   company: string;
-  companyId?: number;
+
 }
 
 export default function Products() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [searchField, setSearchField] = useState<"all" | "code" | "name" | "reference" | "brand" | "manufacturerCode">("all");
+  const [searchField, setSearchField] = useState<"all" | "code" | "name" | "reference" | "brand" | "factoryCode">("all");
   const [sortBy, setSortBy] = useState<"name" | "price">("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [selectedCompany, setSelectedCompany] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [selectedCompany, setSelectedCompany] = useState<string>("1");
 
   const { data, isLoading, error } = trpc.products.search.useQuery(
     {
@@ -58,7 +58,7 @@ export default function Products() {
       sortOrder,
       page,
       pageSize: 20,
-      companyId: selectedCompany,
+      companyFilter: selectedCompany,
     },
     {}
   );
@@ -80,7 +80,6 @@ export default function Products() {
     price: number;
     stock: number;
     company: string;
-    companyId?: number;
   }) => {
     if (product.stock <= 0) {
       toast.error("Produto sem estoque disponível.");
@@ -102,7 +101,6 @@ export default function Products() {
         quantity: 1,
         unitPrice: product.price,
         company: product.company,
-        companyId: product.companyId,
       }]);
       toast.success(`"${product.name}" adicionado ao orçamento.`);
     }
@@ -167,7 +165,7 @@ export default function Products() {
               {/* Company Selector */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Empresa</label>
-                <Select value={selectedCompany.toString()} onValueChange={(value: any) => setSelectedCompany(parseInt(value) as 1 | 2 | 3 | 4 | 5)}>
+                <Select value={selectedCompany} onValueChange={(value: string) => setSelectedCompany(value)}>
                   <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
@@ -194,7 +192,7 @@ export default function Products() {
                     <SelectItem value="name">Nome</SelectItem>
                     <SelectItem value="brand">Marca</SelectItem>
                     <SelectItem value="reference">Referência</SelectItem>
-                    <SelectItem value="manufacturerCode">Código de Fabricação</SelectItem>
+                    <SelectItem value="factoryCode">Código de Fabricação</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -338,7 +336,7 @@ export default function Products() {
                         <tr
                           key={`${product.code}-${idx}`}
                           className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${inCart ? "bg-blue-50/50" : ""}`}
-                          title={`Empresa: ${product.company || `Empresa ${product.companyId || 1}`}`}
+                          title={`Empresa: ${product.company}`}
                         >
                           <td className="px-4 py-3 font-mono text-xs font-medium">
                             {product.code}
@@ -351,7 +349,7 @@ export default function Products() {
                           </td>
                           <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
                             <span className="px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
-                              {product.company || `Empresa ${product.companyId || 1}`}
+                              {product.company}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold">

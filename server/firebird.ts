@@ -144,22 +144,21 @@ export interface FirebirdProduct {
   price: number;
   stock: number;
   brand: string;
-  reference?: string;      // Campo oculto (pesquisável)
-  factoryCode?: string;    // Campo oculto (pesquisável)
+  reference: string;      // Campo oculto (pesquisável)
+  factoryCode: string;    // Campo oculto (pesquisável)
   reserved: string;        // valor bruto do campo (ex: "S", "N", "1", "0")
   isReserved: boolean;     // true se reserved === FB_FILTERS.RESERVED_YES_VALUE
   company: string;
-  companyId?: number;      // ID da empresa (1-5)
 }
 
 export interface ProductSearchParams {
   search?: string;
-  searchField?: "code" | "name" | "brand" | "reference" | "manufacturerCode" | "all";
+  searchField?: "code" | "name" | "brand" | "reference" | "factoryCode" | "all";
   sortBy?: "name" | "price";
   sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: number;
-  companyId?: number; // Filtrar por empresa (1-5)
+  companyFilter?: string; // Filtrar por empresa (string: "1", "2", etc)
 }
 
 export interface ProductSearchResult {
@@ -185,6 +184,7 @@ function getFirebirdOptions(): Record<string, unknown> {
 /**
  * Executa uma query no Firebird e retorna os resultados.
  * Abre e fecha a conexão a cada chamada (stateless).
+ * NUNCA use interpolação direta em queries SQL. Use ? com array de parâmetros.
  */
 async function queryFirebird<T = Record<string, unknown>>(
   sql: string,
@@ -199,45 +199,62 @@ async function queryFirebird<T = Record<string, unknown>>(
         reject(new Error(`Falha na conexão com Firebird: ${err.message}`));
         return;
       }
-      db.query(sql, params, (queryErr: Error | null, result: unknown) => {
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      db.query(sql, params, (err: Error | null, result: any) => {
         db.detach();
-        if (queryErr) {
-          console.error("[Firebird] Erro na query:", queryErr.message);
-          reject(new Error(`Erro na query Firebird: ${queryErr.message}`));
+
+        if (err) {
+          console.error("[Firebird] Erro na query:", err.message);
+          reject(new Error(`Erro na query Firebird: ${err.message}`));
           return;
         }
-        resolve((result as T[]) || []);
+
+        resolve(result || []);
       });
     });
   });
 }
 
 /**
- * Normaliza um valor do Firebird para string segura.
+ * Testa a conexão com o Firebird.
+ * NUNCA simplifique esta função. DEVE usar Firebird.attach() com callback e db.detach().
+ * Não usar queryFirebird() nessa função.
  */
-function toStr(val: unknown): string {
-  if (val === null || val === undefined) return "";
-  return String(val).trim();
+export async function testFirebirdConnection(): Promise<{ connected: boolean; message: string }> {
+  return new Promise((resolve) => {
+    const options = getFirebirdOptions();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Firebird as any).attach(options, (err: Error | null, db: any) => {
+      if (err) {
+        console.error("[Firebird] Erro ao conectar:", err.message);
+        resolve({
+          connected: false,
+          message: `Falha na conexão: ${err.message}`,
+        });
+        return;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      db.detach((detachErr: Error | null) => {
+        if (detachErr) {
+          console.error("[Firebird] Erro ao desconectar:", detachErr.message);
+          resolve({
+            connected: false,
+            message: `Erro ao desconectar: ${detachErr.message}`,
+          });
+          return;
+        }
+
+        resolve({
+          connected: true,
+          message: "Conectado com sucesso ao Firebird",
+        });
+      });
+    });
+  });
 }
 
-/**
- * Normaliza um valor do Firebird para número.
- */
-function toNum(val: unknown): number {
-  if (val === null || val === undefined) return 0;
-  const n = parseFloat(String(val));
-  return isNaN(n) ? 0 : n;
-}
-
-/**
- * Monta o SELECT com os 4 JOINs.
- *
- * Estrutura do JOIN:
- *   TESTPRODUTOGERAL (PG)
- *     JOIN TESTPRODUTO  (PP) ON PP.[PRODUCT_CODE] = PG.[CODE]
- *     JOIN TESTESTOQUE  (ES) ON ES.[PRODUCT_CODE] = PG.[CODE]
- *     JOIN TESTMARCA    (MA) ON MA.[BRAND_CODE]   = PG.[BRAND_CODE]  <- marca via TESTPRODUTOGERAL
- */
 function buildSelectFields(): string {
   const pg = FB_TABLE_PRODUTO_GERAL;
   const pp = FB_TABLE_PRODUTO;
@@ -282,9 +299,30 @@ function buildFromClause(): string {
 }
 
 /**
+ * Busca empresas disponíveis no banco de dados.
+ * NUNCA use lista hardcoded — fazer SELECT DISTINCT no banco.
+ */
+export async function getAvailableCompanies(): Promise<string[]> {
+  try {
+    const e = FB_ESTOQUE;
+    const sql = `SELECT DISTINCT ${e.COMPANY} FROM ${FB_TABLE_ESTOQUE} ORDER BY ${e.COMPANY}`;
+    const result = await queryFirebird<{ COMPANY: string }>(sql);
+    return result.map((row) => row.COMPANY).filter(Boolean);
+  } catch (error) {
+    console.error("[Firebird] Erro ao buscar empresas:", error);
+    return [];
+  }
+}
+
+/**
  * Busca produtos no Firebird combinando as 4 tabelas.
  * Suporta pesquisa por múltiplos campos (código, nome, marca, referência, código de fabricação).
  * Referência e código de fabricação são pesquisáveis mas não exibidos na UI.
+ * 
+ * REGRAS OBRIGATÓRIAS:
+ * - NUNCA use interpolação direta em queries SQL. Use ? com array de parâmetros.
+ * - Sem search, retorne lista vazia com connected: true (NUNCA retorne connected: false).
+ * - Filtro de empresa usa companyFilter?: string (não companyId numérico).
  */
 export async function searchProducts(
   params: ProductSearchParams
@@ -296,8 +334,11 @@ export async function searchProducts(
   const searchField = params.searchField || "all";
   const sortBy = params.sortBy || "name";
   const sortOrder = params.sortOrder || "asc";
-  const companyId = params.companyId || 1; // Padrão: empresa 1
+  
+  // Usar companyFilter (string) em vez de companyId (número)
+  const companyValue = (params.companyFilter ?? "").trim() || FB_FILTERS.COMPANY_VALUE;
 
+  // NUNCA retorne connected: false sem search. Retorne lista vazia com connected: true.
   if (!search) {
     return {
       products: [],
@@ -305,40 +346,53 @@ export async function searchProducts(
       page,
       pageSize,
       totalPages: 0,
-      connected: false,
+      connected: true,
     };
   }
 
   try {
     const g = FB_GERAL;
     const e = FB_ESTOQUE;
+    const queryParams: unknown[] = [];
 
     // Construir cláusula WHERE baseado no campo de pesquisa
-    let whereConditions: string[] = [];
+    // NUNCA use interpolação direta. Use ? com array de parâmetros.
+    const whereConditions: string[] = [];
+    const searchPattern = `%${search}%`;
 
     if (searchField === "code" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.CODE}) LIKE '%${search}%'`);
+      whereConditions.push(`UPPER(PG.${g.CODE}) LIKE ?`);
+      queryParams.push(searchPattern);
     }
     if (searchField === "name" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.NAME}) LIKE '%${search}%'`);
+      whereConditions.push(`UPPER(PG.${g.NAME}) LIKE ?`);
+      queryParams.push(searchPattern);
     }
     if (searchField === "brand" || searchField === "all") {
-      whereConditions.push(`UPPER(MA.${FB_MARCA.BRAND_NAME}) LIKE '%${search}%'`);
+      whereConditions.push(`UPPER(MA.${FB_MARCA.BRAND_NAME}) LIKE ?`);
+      queryParams.push(searchPattern);
     }
     if (searchField === "reference" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.REFERENCE}) LIKE '%${search}%'`);
+      whereConditions.push(`UPPER(PG.${g.REFERENCE}) LIKE ?`);
+      queryParams.push(searchPattern);
     }
-    if (searchField === "manufacturerCode" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.FACTORY_CODE}) LIKE '%${search}%'`);
+    if (searchField === "factoryCode" || searchField === "all") {
+      whereConditions.push(`UPPER(PG.${g.FACTORY_CODE}) LIKE ?`);
+      queryParams.push(searchPattern);
     }
 
     const whereClause = whereConditions.length > 0 
-      ? `WHERE ${whereConditions.join(" OR ")}`
+      ? `WHERE (${whereConditions.join(" OR ")})`
       : "";
 
-    // Filtrar por empresa selecionada
-    const companyFilter = `AND ES.${e.COMPANY} = ${companyId}`;
-    const finalWhere = whereClause + ` ${companyFilter}`;
+    // Filtrar por empresa selecionada (se companyValue não estiver vazio)
+    let companyFilterClause = "";
+    if (companyValue) {
+      companyFilterClause = ` AND ES.${e.COMPANY} = ?`;
+      queryParams.push(companyValue);
+    }
+
+    const finalWhere = whereClause + companyFilterClause;
 
     // Construir ORDER BY
     let orderBy = "ORDER BY PG." + g.NAME + " " + sortOrder.toUpperCase();
@@ -348,14 +402,12 @@ export async function searchProducts(
 
     // Query para contar total
     const countSql = `
-      SELECT COUNT(*) as TOTAL
+      SELECT COUNT(*) AS TOTAL
       FROM ${buildFromClause()}
       ${finalWhere}
     `;
-
-    const countResult = await queryFirebird<{ TOTAL: number }>(countSql);
+    const countResult = await queryFirebird<{ TOTAL: number }>(countSql, queryParams);
     const total = countResult[0]?.TOTAL || 0;
-    const totalPages = Math.ceil(total / pageSize);
 
     if (total === 0) {
       return {
@@ -377,21 +429,32 @@ export async function searchProducts(
       ROWS ${offset + 1} TO ${offset + pageSize}
     `;
 
-    const results = await queryFirebird<Record<string, unknown>>(sql);
+    const results = await queryFirebird<{
+      CODE: string;
+      NAME: string;
+      REFERENCE: string;
+      FACTORY_CODE: string;
+      PRICE: number;
+      STOCK: number;
+      RESERVED: string;
+      COMPANY: string;
+      BRAND: string;
+    }>(sql, queryParams);
 
     const products: FirebirdProduct[] = results.map((row) => ({
-      code: toStr(row.CODE),
-      name: toStr(row.NAME),
-      reference: toStr(row.REFERENCE),
-      factoryCode: toStr(row.FACTORY_CODE),
-      price: toNum(row.PRICE),
-      stock: toNum(row.STOCK),
-      brand: toStr(row.BRAND),
-      reserved: toStr(row.RESERVED),
-      isReserved: toStr(row.RESERVED) === FB_FILTERS.RESERVED_YES_VALUE,
-      company: toStr(row.COMPANY),
-      companyId: companyId,
+      code: row.CODE,
+      name: row.NAME,
+      price: parseFloat(String(row.PRICE || 0)),
+      stock: parseInt(String(row.STOCK || 0)),
+      brand: row.BRAND,
+      reference: row.REFERENCE,
+      factoryCode: row.FACTORY_CODE,
+      reserved: row.RESERVED,
+      isReserved: row.RESERVED === FB_FILTERS.RESERVED_YES_VALUE,
+      company: row.COMPANY,
     }));
+
+    const totalPages = Math.ceil(total / pageSize);
 
     return {
       products,
@@ -402,7 +465,7 @@ export async function searchProducts(
       connected: true,
     };
   } catch (error) {
-    console.error("[Firebird] Erro na busca de produtos:", error);
+    console.error("[Firebird] Erro na busca:", error);
     return {
       products: [],
       total: 0,
@@ -411,32 +474,5 @@ export async function searchProducts(
       totalPages: 0,
       connected: false,
     };
-  }
-}
-
-/**
- * Busca todas as empresas disponíveis (1-5)
- */
-export function getAvailableCompanies(): Array<{ id: number; name: string }> {
-  return [
-    { id: 1, name: "Empresa 1" },
-    { id: 2, name: "Empresa 2" },
-    { id: 3, name: "Empresa 3" },
-    { id: 4, name: "Empresa 4" },
-    { id: 5, name: "Empresa 5" },
-  ];
-}
-
-/**
- * Testa a conexão com o Firebird
- */
-export async function testFirebirdConnection(): Promise<boolean> {
-  try {
-    const sql = `SELECT FIRST 1 * FROM ${FB_TABLE_PRODUTO_GERAL}`;
-    await queryFirebird(sql);
-    return true;
-  } catch (error) {
-    console.error("[Firebird] Falha no teste de conexão:", error);
-    return false;
   }
 }

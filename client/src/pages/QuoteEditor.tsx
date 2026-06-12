@@ -69,7 +69,7 @@ export default function QuoteEditor() {
     { enabled: isEditing && !!quoteId }
   );
   const { data: searchResults, isLoading: searchLoading } = trpc.products.search.useQuery(
-    { search: debouncedSearch, pageSize: 10, companyId: 1 },
+    { search: debouncedSearch, pageSize: 10, companyFilter: "1" },
     { enabled: debouncedSearch.length >= 2 }
   );
   const { data: existingVehicle } = trpc.quotes.getVehicleInfo.useQuery(
