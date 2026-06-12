@@ -336,7 +336,11 @@ export async function searchProducts(
   const sortOrder = params.sortOrder || "asc";
   
   // Usar companyFilter (string) em vez de companyId (número)
-  const companyValue = (params.companyFilter ?? "").trim() || FB_FILTERS.COMPANY_VALUE;
+  // IMPORTANTE: EMPRESA tem apenas 2 caracteres no Firebird, truncar para evitar string truncation
+  let companyValue = (params.companyFilter ?? "").trim() || FB_FILTERS.COMPANY_VALUE;
+  if (companyValue) {
+    companyValue = companyValue.substring(0, 2).toUpperCase();
+  }
 
   // Sem search, buscar todos os produtos (não retornar lista vazia)
   // Construir WHERE vazio (sem filtro de busca) mas com filtro de empresa
@@ -345,27 +349,36 @@ export async function searchProducts(
 
   // Se houver busca, aplicar filtros
   if (search) {
-    const searchPattern = `%${search}%`;
+    // Limitar tamanho do padrão de busca para respeitar tamanhos dos campos no Firebird
+    // CODIGO: 6, DESCRICAO: 50, FABRICANTE: 20, REFERENCIA: 16, CODIGOFABRICA: 22
+    const maxSearchLength = 50; // Usar o maior tamanho (DESCRICAO)
+    const truncatedSearch = search.substring(0, maxSearchLength);
+    const searchPattern = `%${truncatedSearch}%`;
 
     if (searchField === "code" || searchField === "all") {
+      const codeSearch = truncatedSearch.substring(0, 6); // CODIGO: 6 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.CODE}) LIKE ?`);
-      queryParams.push(searchPattern);
+      queryParams.push(`%${codeSearch}%`);
     }
     if (searchField === "name" || searchField === "all") {
+      const nameSearch = truncatedSearch.substring(0, 50); // DESCRICAO: 50 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.NAME}) LIKE ?`);
-      queryParams.push(searchPattern);
+      queryParams.push(`%${nameSearch}%`);
     }
     if (searchField === "brand" || searchField === "all") {
+      const brandSearch = truncatedSearch.substring(0, 20); // FABRICANTE: 20 caracteres
       whereConditions.push(`UPPER(MA.${FB_MARCA.BRAND_NAME}) LIKE ?`);
-      queryParams.push(searchPattern);
+      queryParams.push(`%${brandSearch}%`);
     }
     if (searchField === "reference" || searchField === "all") {
+      const refSearch = truncatedSearch.substring(0, 16); // REFERENCIA: 16 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.REFERENCE}) LIKE ?`);
-      queryParams.push(searchPattern);
+      queryParams.push(`%${refSearch}%`);
     }
     if (searchField === "factoryCode" || searchField === "all") {
+      const factorySearch = truncatedSearch.substring(0, 22); // CODIGOFABRICA: 22 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.FACTORY_CODE}) LIKE ?`);
-      queryParams.push(searchPattern);
+      queryParams.push(`%${factorySearch}%`);
     }
   }
 
