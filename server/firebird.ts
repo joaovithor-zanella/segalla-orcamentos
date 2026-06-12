@@ -338,34 +338,21 @@ export async function searchProducts(
   // Usar companyFilter (string) em vez de companyId (número)
   const companyValue = (params.companyFilter ?? "").trim() || FB_FILTERS.COMPANY_VALUE;
 
-  // NUNCA retorne connected: false sem search. Retorne lista vazia com connected: true.
-  if (!search) {
-    return {
-      products: [],
-      total: 0,
-      page,
-      pageSize,
-      totalPages: 0,
-      connected: true,
-    };
-  }
+  // Sem search, buscar todos os produtos (não retornar lista vazia)
+  // Construir WHERE vazio (sem filtro de busca) mas com filtro de empresa
+  const whereConditions: string[] = [];
+  const queryParams: unknown[] = [];
 
-  try {
-    const g = FB_GERAL;
-    const e = FB_ESTOQUE;
-    const queryParams: unknown[] = [];
-
-    // Construir cláusula WHERE baseado no campo de pesquisa
-    // NUNCA use interpolação direta. Use ? com array de parâmetros.
-    const whereConditions: string[] = [];
+  // Se houver busca, aplicar filtros
+  if (search) {
     const searchPattern = `%${search}%`;
 
     if (searchField === "code" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.CODE}) LIKE ?`);
+      whereConditions.push(`UPPER(PG.${FB_GERAL.CODE}) LIKE ?`);
       queryParams.push(searchPattern);
     }
     if (searchField === "name" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.NAME}) LIKE ?`);
+      whereConditions.push(`UPPER(PG.${FB_GERAL.NAME}) LIKE ?`);
       queryParams.push(searchPattern);
     }
     if (searchField === "brand" || searchField === "all") {
@@ -373,22 +360,27 @@ export async function searchProducts(
       queryParams.push(searchPattern);
     }
     if (searchField === "reference" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.REFERENCE}) LIKE ?`);
+      whereConditions.push(`UPPER(PG.${FB_GERAL.REFERENCE}) LIKE ?`);
       queryParams.push(searchPattern);
     }
     if (searchField === "factoryCode" || searchField === "all") {
-      whereConditions.push(`UPPER(PG.${g.FACTORY_CODE}) LIKE ?`);
+      whereConditions.push(`UPPER(PG.${FB_GERAL.FACTORY_CODE}) LIKE ?`);
       queryParams.push(searchPattern);
     }
+  }
 
-    const whereClause = whereConditions.length > 0 
-      ? `WHERE (${whereConditions.join(" OR ")})`
-      : "";
+  const whereClause = whereConditions.length > 0 
+    ? `WHERE (${whereConditions.join(" OR ")})`
+    : "";
+
+  try {
+    const g = FB_GERAL;
+    const e = FB_ESTOQUE;
 
     // Filtrar por empresa selecionada (se companyValue não estiver vazio)
     let companyFilterClause = "";
     if (companyValue) {
-      companyFilterClause = ` AND ES.${e.COMPANY} = ?`;
+      companyFilterClause = whereClause ? ` AND ES.${e.COMPANY} = ?` : ` WHERE ES.${e.COMPANY} = ?`;
       queryParams.push(companyValue);
     }
 
