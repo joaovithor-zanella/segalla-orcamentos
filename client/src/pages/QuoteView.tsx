@@ -22,6 +22,7 @@ import {
   CreditCard,
   MessageSquare,
   Package,
+  Truck,
 } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
@@ -46,6 +47,10 @@ export default function QuoteView() {
 
   const { data: quote, isLoading } = trpc.quotes.getById.useQuery({ id: quoteId });
   const { data: paymentMethods } = trpc.paymentMethods.list.useQuery({ activeOnly: false });
+  const { data: vehicleInfo } = trpc.quotes.getVehicleInfo.useQuery(
+    { quoteId },
+    { enabled: !!quoteId }
+  );
   const utils = trpc.useUtils();
   const updateMutation = trpc.quotes.update.useMutation({
     onSuccess: () => {
@@ -207,6 +212,23 @@ export default function QuoteView() {
                 <div>
                   <p className="text-xs text-muted-foreground">Pagamento</p>
                   <p className="text-sm font-semibold">{paymentMethod.name}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {vehicleInfo && (vehicleInfo.plate || vehicleInfo.model || vehicleInfo.year) && (
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-orange-50">
+                  <Truck className="h-4 w-4 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Veículo</p>
+                  <p className="text-sm font-semibold">
+                    {vehicleInfo.plate && `${vehicleInfo.plate}`}
+                    {vehicleInfo.model && ` · ${vehicleInfo.model}`}
+                    {vehicleInfo.year && ` (${vehicleInfo.year})`}
+                  </p>
                 </div>
               </CardContent>
             </Card>

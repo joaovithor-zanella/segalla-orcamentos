@@ -76,31 +76,44 @@ export default function QuoteEditor() {
   );
 
   const utils = trpc.useUtils();
+  
+  // Move mutations to component level (FIX: Hooks must be at top level)
+  const setVehicleInfoMutation = trpc.quotes.setVehicleInfo.useMutation({
+    onSuccess: () => {
+      utils.quotes.getVehicleInfo.invalidate();
+    },
+    onError: (err) => toast.error(`Erro ao salvar veículo: ${err.message}`),
+  });
+
   const createMutation = trpc.quotes.create.useMutation({
     onSuccess: (data) => {
       toast.success(`Orçamento #${data.number} criado com sucesso!`);
       utils.quotes.list.invalidate();
-      // Save vehicle info if provided
+      
+      // Save vehicle info if provided (now using mutation at top level)
       if (vehicleInfo.plate || vehicleInfo.model || vehicleInfo.year) {
-        trpc.quotes.setVehicleInfo.useMutation().mutate({
+        setVehicleInfoMutation.mutate({
           quoteId: data.id,
           plate: vehicleInfo.plate,
           model: vehicleInfo.model,
           year: vehicleInfo.year,
         });
       }
+      
       setLocation(`/orcamentos/${data.id}`);
     },
     onError: (err) => toast.error(`Erro: ${err.message}`),
   });
+
   const updateMutation = trpc.quotes.update.useMutation({
     onSuccess: () => {
       toast.success("Orçamento atualizado com sucesso!");
       utils.quotes.list.invalidate();
       if (quoteId) utils.quotes.getById.invalidate({ id: quoteId });
-      // Save vehicle info if provided
+      
+      // Save vehicle info if provided (now using mutation at top level)
       if (quoteId && (vehicleInfo.plate || vehicleInfo.model || vehicleInfo.year)) {
-        trpc.quotes.setVehicleInfo.useMutation().mutate({
+        setVehicleInfoMutation.mutate({
           quoteId,
           plate: vehicleInfo.plate,
           model: vehicleInfo.model,
@@ -229,7 +242,7 @@ export default function QuoteEditor() {
     }
   };
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending || setVehicleInfoMutation.isPending;
 
   return (
     <DashboardLayout>
