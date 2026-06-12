@@ -92,6 +92,8 @@ export const quoteItems = mysqlTable("quote_items", {
   productCode: varchar("productCode", { length: 60 }).notNull(),
   productName: varchar("productName", { length: 300 }).notNull(),
   productBrand: varchar("productBrand", { length: 120 }),
+  company: varchar("company", { length: 100 }), // Nome da empresa/filial
+  companyId: int("companyId"), // ID da empresa (1-5)
   quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default("1.00"),
   unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }).notNull().default("0.00"),
   totalPrice: decimal("totalPrice", { precision: 12, scale: 2 }).notNull().default("0.00"),

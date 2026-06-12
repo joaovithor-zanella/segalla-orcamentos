@@ -31,7 +31,7 @@ import {
   deleteVehicleInfo,
 } from "./db";
 import { hashPassword, verifyPassword } from "./localAuthManager";
-import { searchProducts, testFirebirdConnection } from "./firebird";
+import { searchProducts, testFirebirdConnection, getAvailableCompanies } from "./firebird";
 
 // ─── Admin middleware ─────────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -168,6 +168,7 @@ const productsRouter = router({
         sortOrder: z.enum(["asc", "desc"]).optional(),
         page: z.number().optional(),
         pageSize: z.number().optional(),
+        companyId: z.number().int().min(1).max(5).optional(), // Filtrar por empresa (1-5)
       })
     )
     .query(async ({ input }) => {
@@ -222,6 +223,8 @@ const quotesRouter = router({
             productBrand: z.string().optional(),
             quantity: z.number().positive(),
             unitPrice: z.number().min(0),
+            company: z.string().optional(),
+            companyId: z.number().optional(),
           })
         ),
       })
@@ -239,6 +242,8 @@ const quotesRouter = router({
         productCode: item.productCode,
         productName: item.productName,
         productBrand: item.productBrand || "",
+        company: item.company,
+        companyId: item.companyId,
         quantity: item.quantity.toFixed(2),
         unitPrice: item.unitPrice.toFixed(2),
         totalPrice: (item.quantity * item.unitPrice).toFixed(2),
@@ -268,6 +273,8 @@ const quotesRouter = router({
               productBrand: z.string().optional(),
               quantity: z.number().positive(),
               unitPrice: z.number().min(0),
+              company: z.string().optional(),
+              companyId: z.number().optional(),
             })
           )
           .optional(),
@@ -289,6 +296,8 @@ const quotesRouter = router({
           productCode: item.productCode,
           productName: item.productName,
           productBrand: item.productBrand || "",
+          company: item.company,
+          companyId: item.companyId,
           quantity: item.quantity.toFixed(2),
           unitPrice: item.unitPrice.toFixed(2),
           totalPrice: (item.quantity * item.unitPrice).toFixed(2),

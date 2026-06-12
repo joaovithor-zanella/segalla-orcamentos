@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `quote_items` ADD `company` varchar(100);\nALTER TABLE `quote_items` ADD `companyId` int;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user pi3ynY2af1Qiiwj.root --database DejDaqUSMBApBtqv9hxC7b --execute ALTER TABLE `quote_items` ADD `company` varchar(100);\nALTER TABLE `quote_items` ADD `companyId` int;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 726
+}

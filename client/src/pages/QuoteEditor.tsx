@@ -32,6 +32,8 @@ interface CartItem {
   productBrand: string;
   quantity: number;
   unitPrice: number;
+  company?: string;
+  companyId?: number;
 }
 
 interface VehicleInfo {
@@ -67,7 +69,7 @@ export default function QuoteEditor() {
     { enabled: isEditing && !!quoteId }
   );
   const { data: searchResults, isLoading: searchLoading } = trpc.products.search.useQuery(
-    { search: debouncedSearch, pageSize: 10 },
+    { search: debouncedSearch, pageSize: 10, companyId: 1 },
     { enabled: debouncedSearch.length >= 2 }
   );
   const { data: existingVehicle } = trpc.quotes.getVehicleInfo.useQuery(
@@ -174,7 +176,7 @@ export default function QuoteEditor() {
     setSearchTimeout(t);
   };
 
-  const addProduct = (product: { code: string; name: string; brand: string; price: number; stock: number }) => {
+  const addProduct = (product: { code: string; name: string; brand: string; price: number; stock: number; company?: string; companyId?: number }) => {
     if (product.stock <= 0) {
       toast.error("Produto sem estoque.");
       return;
@@ -191,6 +193,8 @@ export default function QuoteEditor() {
         productBrand: product.brand,
         quantity: 1,
         unitPrice: product.price,
+        company: product.company,
+        companyId: product.companyId,
       }]);
     }
     setProductSearch("");
@@ -233,6 +237,8 @@ export default function QuoteEditor() {
         productBrand: i.productBrand,
         quantity: i.quantity,
         unitPrice: i.unitPrice,
+        company: i.company,
+        companyId: i.companyId,
       })),
     };
     if (isEditing && quoteId) {

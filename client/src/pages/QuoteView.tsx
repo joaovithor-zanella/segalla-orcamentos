@@ -275,6 +275,7 @@ export default function QuoteView() {
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Código</th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Produto</th>
                     <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Referência</th>
+                    <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">Empresa</th>
                     <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Qtd</th>
                     <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Preço Unit.</th>
                     <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Total</th>
@@ -287,6 +288,11 @@ export default function QuoteView() {
                       <td className="px-4 py-3 font-medium">{item.productName}</td>
                       <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
                         {item.productBrand || "—"}
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                          {item.company || `Empresa ${item.companyId || 1}`}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-center">{parseFloat(item.quantity)}</td>
                       <td className="px-4 py-3 text-right">

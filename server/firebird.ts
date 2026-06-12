@@ -149,6 +149,7 @@ export interface FirebirdProduct {
   reserved: string;        // valor bruto do campo (ex: "S", "N", "1", "0")
   isReserved: boolean;     // true se reserved === FB_FILTERS.RESERVED_YES_VALUE
   company: string;
+  companyId?: number;      // ID da empresa (1-5)
 }
 
 export interface ProductSearchParams {
@@ -158,6 +159,7 @@ export interface ProductSearchParams {
   sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: number;
+  companyId?: number; // Filtrar por empresa (1-5)
 }
 
 export interface ProductSearchResult {
@@ -294,6 +296,7 @@ export async function searchProducts(
   const searchField = params.searchField || "all";
   const sortBy = params.sortBy || "name";
   const sortOrder = params.sortOrder || "asc";
+  const companyId = params.companyId || 1; // Padrão: empresa 1
 
   if (!search) {
     return {
@@ -333,12 +336,9 @@ export async function searchProducts(
       ? `WHERE ${whereConditions.join(" OR ")}`
       : "";
 
-    // Adicionar filtro de empresa se configurado
-    const companyFilter = FB_FILTERS.COMPANY_VALUE 
-      ? `AND ES.${e.COMPANY} = '${FB_FILTERS.COMPANY_VALUE}'`
-      : "";
-
-    const finalWhere = whereClause + (companyFilter ? ` ${companyFilter}` : "");
+    // Filtrar por empresa selecionada
+    const companyFilter = `AND ES.${e.COMPANY} = ${companyId}`;
+    const finalWhere = whereClause + ` ${companyFilter}`;
 
     // Construir ORDER BY
     let orderBy = "ORDER BY PG." + g.NAME + " " + sortOrder.toUpperCase();
@@ -390,6 +390,7 @@ export async function searchProducts(
       reserved: toStr(row.RESERVED),
       isReserved: toStr(row.RESERVED) === FB_FILTERS.RESERVED_YES_VALUE,
       company: toStr(row.COMPANY),
+      companyId: companyId,
     }));
 
     return {
@@ -411,6 +412,19 @@ export async function searchProducts(
       connected: false,
     };
   }
+}
+
+/**
+ * Busca todas as empresas disponíveis (1-5)
+ */
+export function getAvailableCompanies(): Array<{ id: number; name: string }> {
+  return [
+    { id: 1, name: "Empresa 1" },
+    { id: 2, name: "Empresa 2" },
+    { id: 3, name: "Empresa 3" },
+    { id: 4, name: "Empresa 4" },
+    { id: 5, name: "Empresa 5" },
+  ];
 }
 
 /**

@@ -34,6 +34,8 @@ interface CartItem {
   productBrand: string;
   quantity: number;
   unitPrice: number;
+  company: string;
+  companyId?: number;
 }
 
 export default function Products() {
@@ -46,6 +48,7 @@ export default function Products() {
   const [page, setPage] = useState(1);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   const { data, isLoading, error } = trpc.products.search.useQuery(
     {
@@ -55,6 +58,7 @@ export default function Products() {
       sortOrder,
       page,
       pageSize: 20,
+      companyId: selectedCompany,
     },
     {}
   );
@@ -75,6 +79,8 @@ export default function Products() {
     brand: string;
     price: number;
     stock: number;
+    company: string;
+    companyId?: number;
   }) => {
     if (product.stock <= 0) {
       toast.error("Produto sem estoque disponível.");
@@ -95,6 +101,8 @@ export default function Products() {
         productBrand: product.brand,
         quantity: 1,
         unitPrice: product.price,
+        company: product.company,
+        companyId: product.companyId,
       }]);
       toast.success(`"${product.name}" adicionado ao orçamento.`);
     }
@@ -155,7 +163,24 @@ export default function Products() {
             </div>
 
             {/* Filter Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {/* Company Selector */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Empresa</label>
+                <Select value={selectedCompany.toString()} onValueChange={(value: any) => setSelectedCompany(parseInt(value) as 1 | 2 | 3 | 4 | 5)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Empresa 1</SelectItem>
+                    <SelectItem value="2">Empresa 2</SelectItem>
+                    <SelectItem value="3">Empresa 3</SelectItem>
+                    <SelectItem value="4">Empresa 4</SelectItem>
+                    <SelectItem value="5">Empresa 5</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Search Field */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Buscar em</label>
@@ -300,6 +325,7 @@ export default function Products() {
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Código</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Descrição</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">Marca</th>
+                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Empresa</th>
                       <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Preço</th>
                       <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Estoque</th>
                       <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Ação</th>
@@ -312,6 +338,7 @@ export default function Products() {
                         <tr
                           key={`${product.code}-${idx}`}
                           className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${inCart ? "bg-blue-50/50" : ""}`}
+                          title={`Empresa: ${product.company || `Empresa ${product.companyId || 1}`}`}
                         >
                           <td className="px-4 py-3 font-mono text-xs font-medium">
                             {product.code}
@@ -321,6 +348,11 @@ export default function Products() {
                           </td>
                           <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                             {product.brand || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
+                            <span className="px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                              {product.company || `Empresa ${product.companyId || 1}`}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold">
                             {product.price > 0
