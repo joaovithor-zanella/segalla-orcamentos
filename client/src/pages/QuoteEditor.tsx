@@ -62,6 +62,7 @@ export default function QuoteEditor() {
     model: "",
     year: undefined,
   });
+  const [selectedCompany, setSelectedCompany] = useState<string>("1");
 
   const { data: paymentMethods } = trpc.paymentMethods.list.useQuery({ activeOnly: true });
   const { data: existingQuote } = trpc.quotes.getById.useQuery(
@@ -231,15 +232,19 @@ export default function QuoteEditor() {
       customerPhone: customerPhone || undefined,
       paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : undefined,
       observations: observations || undefined,
-      items: items.map((i) => ({
-        productCode: i.productCode,
-        productName: i.productName,
-        productBrand: i.productBrand,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        company: i.company,
-        companyId: i.companyId,
-      })),
+      items: items.map((i) => {
+        // Se o item não tem empresa definida, usar a empresa selecionada
+        const companyNum = parseInt(selectedCompany, 10);
+        return {
+          productCode: i.productCode,
+          productName: i.productName,
+          productBrand: i.productBrand,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          company: i.company || String(companyNum).padStart(2, "0"),
+          companyId: i.companyId || companyNum,
+        };
+      }),
     };
     if (isEditing && quoteId) {
       updateMutation.mutate({ id: quoteId, ...payload });
@@ -403,6 +408,28 @@ export default function QuoteEditor() {
 
           {/* Right: Customer & Summary */}
           <div className="space-y-4">
+            {/* Company Selection */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Empresa</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Label htmlFor="company" className="text-sm">Selecione a empresa</Label>
+                <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                  <SelectTrigger id="company" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Empresa 1</SelectItem>
+                    <SelectItem value="2">Empresa 2</SelectItem>
+                    <SelectItem value="3">Empresa 3</SelectItem>
+                    <SelectItem value="4">Empresa 4</SelectItem>
+                    <SelectItem value="5">Empresa 5</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
             {/* Customer Info */}
             <Card>
               <CardHeader className="pb-3">

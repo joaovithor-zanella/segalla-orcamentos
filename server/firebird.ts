@@ -411,6 +411,10 @@ export async function searchProducts(
 
     const finalWhere = whereClause + companyFilterClause;
 
+    // Logging detalhado para debugar problema da Empresa 2
+    console.log(`[Firebird] searchProducts - companyFilter: "${params.companyFilter}", companyValue: "${companyValue}", search: "${search}", whereClause: "${whereClause}", companyFilterClause: "${companyFilterClause}", finalWhere: "${finalWhere}"`);
+    console.log(`[Firebird] queryParams: ${JSON.stringify(queryParams)}`);
+
     // Construir ORDER BY
     let orderBy = "ORDER BY PG." + g.NAME + " " + sortOrder.toUpperCase();
     if (sortBy === "price") {

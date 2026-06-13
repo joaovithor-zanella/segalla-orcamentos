@@ -52,3 +52,9 @@
 - [x] Aplicar correção em ambas as funções (create e update)
 - [x] Criar testes unitários para validar formatação de quote_items (10 testes)
 - [x] Validar que todos os 54 testes passam
+
+## Fase 8: Correção de Problemas de Empresa e Orçamento
+- [x] Adicionar logging detalhado na função searchProducts para debugar problema da Empresa 2
+- [x] Adicionar campo de seleção de empresa no formulário de novo orçamento
+- [x] Garantir que company e companyId sejam preenchidos automaticamente com base na empresa selecionada
+- [x] Validar que todos os 54 testes passam
