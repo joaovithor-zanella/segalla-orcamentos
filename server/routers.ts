@@ -242,17 +242,20 @@ const quotesRouter = router({
         status: "draft",
       });
 
-      const quoteItems = items.map((item) => ({
-        quoteId: id,
-        productCode: item.productCode,
-        productName: item.productName,
-        productBrand: item.productBrand || "",
-        company: item.company,
-        companyId: item.companyId,
-        quantity: item.quantity.toFixed(2),
-        unitPrice: item.unitPrice.toFixed(2),
-        totalPrice: (item.quantity * item.unitPrice).toFixed(2),
-      }));
+      const quoteItems = items.map((item) => {
+        const totalPrice = item.quantity * item.unitPrice;
+        return {
+          quoteId: id,
+          productCode: item.productCode,
+          productName: item.productName,
+          productBrand: item.productBrand || "",
+          company: item.company || null,
+          companyId: item.companyId || null,
+          quantity: item.quantity.toFixed(2),
+          unitPrice: item.unitPrice.toFixed(2),
+          totalPrice: totalPrice.toFixed(2),
+        };
+      });
 
       if (quoteItems.length > 0) {
         await replaceQuoteItems(id, quoteItems);
@@ -296,17 +299,20 @@ const quotesRouter = router({
       await updateQuote(id, updateData);
 
       if (items !== undefined) {
-        const quoteItems = items.map((item) => ({
-          quoteId: id,
-          productCode: item.productCode,
-          productName: item.productName,
-          productBrand: item.productBrand || "",
-          company: item.company,
-          companyId: item.companyId,
-          quantity: item.quantity.toFixed(2),
-          unitPrice: item.unitPrice.toFixed(2),
-          totalPrice: (item.quantity * item.unitPrice).toFixed(2),
-        }));
+        const quoteItems = items.map((item) => {
+          const totalPrice = item.quantity * item.unitPrice;
+          return {
+            quoteId: id,
+            productCode: item.productCode,
+            productName: item.productName,
+            productBrand: item.productBrand || "",
+            company: item.company || null,
+            companyId: item.companyId || null,
+            quantity: item.quantity.toFixed(2),
+            unitPrice: item.unitPrice.toFixed(2),
+            totalPrice: totalPrice.toFixed(2),
+          };
+        });
         await replaceQuoteItems(id, quoteItems);
         await recalcQuoteTotal(id);
       }

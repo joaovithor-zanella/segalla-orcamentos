@@ -44,3 +44,11 @@
 - [x] Criar testes unitários para validar tamanho de padrões LIKE (2 testes)
 - [x] Documentar correções em FIREBIRD_TRUNCATION_FIX.md
 - [x] Validar que todos os 44 testes passam
+
+## Fase 7: Correção de Erro ao Salvar Orçamentos
+- [x] Identificar erro ao inserir quote_items (valores decimais incorretos)
+- [x] Corrigir conversão de quantity, unitPrice e totalPrice para strings
+- [x] Garantir que company e companyId sejam null quando não fornecidos
+- [x] Aplicar correção em ambas as funções (create e update)
+- [x] Criar testes unitários para validar formatação de quote_items (10 testes)
+- [x] Validar que todos os 54 testes passam
