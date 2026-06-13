@@ -206,6 +206,9 @@ async function queryFirebird<T = Record<string, unknown>>(
 
         if (err) {
           console.error("[Firebird] Erro na query:", err.message);
+          console.error("[Firebird] SQL:", sql);
+          console.error("[Firebird] Parâmetros:", params);
+          console.error("[Firebird] Tamanho dos parâmetros:", params.map((p, i) => `param[${i}]=${typeof p === 'string' ? `\"${p}\" (${p.length} chars)` : p}`));
           reject(new Error(`Erro na query Firebird: ${err.message}`));
           return;
         }
@@ -336,10 +339,18 @@ export async function searchProducts(
   const sortOrder = params.sortOrder || "asc";
   
   // Usar companyFilter (string) em vez de companyId (número)
-  // IMPORTANTE: EMPRESA tem apenas 2 caracteres no Firebird, truncar para evitar string truncation
+  // IMPORTANTE: EMPRESA tem exatamente 2 caracteres no Firebird ("01", "02", ..., "05")
+  // Garantir que o valor seja sempre 2 caracteres com padding de zeros
   let companyValue = (params.companyFilter ?? "").trim() || FB_FILTERS.COMPANY_VALUE;
   if (companyValue) {
-    companyValue = companyValue.substring(0, 2).toUpperCase();
+    // Converter para número, depois para string com 2 dígitos (padding com zero)
+    const companyNum = parseInt(companyValue, 10);
+    if (!isNaN(companyNum) && companyNum >= 1 && companyNum <= 5) {
+      companyValue = String(companyNum).padStart(2, "0");
+    } else {
+      // Se não for válido, usar valor padrão
+      companyValue = FB_FILTERS.COMPANY_VALUE;
+    }
   }
 
   // Sem search, buscar todos os produtos (não retornar lista vazia)
@@ -350,33 +361,34 @@ export async function searchProducts(
   // Se houver busca, aplicar filtros
   if (search) {
     // Limitar tamanho do padrão de busca para respeitar tamanhos dos campos no Firebird
-    // CODIGO: 6, DESCRICAO: 50, FABRICANTE: 20, REFERENCIA: 16, CODIGOFABRICA: 22
-    const maxSearchLength = 50; // Usar o maior tamanho (DESCRICAO)
+    // IMPORTANTE: O padrão LIKE com wildcards (%) não pode exceder o tamanho do campo
+    // Tamanhos dos campos: CODIGO: 6, DESCRICAO: 50, FABRICANTE: 20, REFERENCIA: 16, CODIGOFABRICA: 22
+    // Fórmula: tamanho_máximo_padrão = tamanho_campo - 2 (para os 2 wildcards %)
+    const maxSearchLength = 48; // Usar 48 para DESCRICAO (50 - 2 para wildcards)
     const truncatedSearch = search.substring(0, maxSearchLength);
-    const searchPattern = `%${truncatedSearch}%`;
 
     if (searchField === "code" || searchField === "all") {
-      const codeSearch = truncatedSearch.substring(0, 6); // CODIGO: 6 caracteres
+      const codeSearch = truncatedSearch.substring(0, 4); // CODIGO: 6 - 2 = 4 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.CODE}) LIKE ?`);
       queryParams.push(`%${codeSearch}%`);
     }
     if (searchField === "name" || searchField === "all") {
-      const nameSearch = truncatedSearch.substring(0, 50); // DESCRICAO: 50 caracteres
+      const nameSearch = truncatedSearch.substring(0, 48); // DESCRICAO: 50 - 2 = 48 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.NAME}) LIKE ?`);
       queryParams.push(`%${nameSearch}%`);
     }
     if (searchField === "brand" || searchField === "all") {
-      const brandSearch = truncatedSearch.substring(0, 20); // FABRICANTE: 20 caracteres
+      const brandSearch = truncatedSearch.substring(0, 18); // FABRICANTE: 20 - 2 = 18 caracteres
       whereConditions.push(`UPPER(MA.${FB_MARCA.BRAND_NAME}) LIKE ?`);
       queryParams.push(`%${brandSearch}%`);
     }
     if (searchField === "reference" || searchField === "all") {
-      const refSearch = truncatedSearch.substring(0, 16); // REFERENCIA: 16 caracteres
+      const refSearch = truncatedSearch.substring(0, 14); // REFERENCIA: 16 - 2 = 14 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.REFERENCE}) LIKE ?`);
       queryParams.push(`%${refSearch}%`);
     }
     if (searchField === "factoryCode" || searchField === "all") {
-      const factorySearch = truncatedSearch.substring(0, 22); // CODIGOFABRICA: 22 caracteres
+      const factorySearch = truncatedSearch.substring(0, 20); // CODIGOFABRICA: 22 - 2 = 20 caracteres
       whereConditions.push(`UPPER(PG.${FB_GERAL.FACTORY_CODE}) LIKE ?`);
       queryParams.push(`%${factorySearch}%`);
     }

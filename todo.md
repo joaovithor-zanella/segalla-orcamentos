@@ -34,3 +34,13 @@
 - [x] Testes vitest para routers principais (14 testes passando)
 - [x] Checkpoint final
 - [x] Documentação de configuração do Firebird
+
+## Fase 6: Correção de Erro "String Right Truncation"
+- [x] Identificar causa do erro SQL code -303 (string right truncation)
+- [x] Implementar padding de zeros para campo EMPRESA ("01"-"05")
+- [x] Corrigir truncação de padrões LIKE para respeitar tamanho dos campos
+- [x] Adicionar logging detalhado de SQL e parâmetros em caso de erro
+- [x] Criar testes unitários para validar formatação de companyValue (6 testes)
+- [x] Criar testes unitários para validar tamanho de padrões LIKE (2 testes)
+- [x] Documentar correções em FIREBIRD_TRUNCATION_FIX.md
+- [x] Validar que todos os 44 testes passam
