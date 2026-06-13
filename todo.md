@@ -58,3 +58,10 @@
 - [x] Adicionar campo de seleção de empresa no formulário de novo orçamento
 - [x] Garantir que company e companyId sejam preenchidos automaticamente com base na empresa selecionada
 - [x] Validar que todos os 54 testes passam
+
+
+## Fase 9: Refatoração do Fluxo de Seleção de Empresa
+- [x] Remover campo de seleção de empresa do formulário de novo orçamento
+- [x] Verificar que a página de Produtos captura corretamente a empresa selecionada
+- [x] Confirmar que company e companyId são salvos corretamente no carrinho
+- [x] Validar que todos os 54 testes continuam passando

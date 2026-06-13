@@ -325,9 +325,21 @@ export async function removeQuoteItem(id: number) {
 export async function replaceQuoteItems(quoteId: number, items: InsertQuoteItem[]) {
   const db = await getDb();
   if (!db) return;
+  
+  console.log(`[DB] replaceQuoteItems: quoteId=${quoteId}, items.length=${items.length}`);
+  items.forEach((item, idx) => {
+    console.log(`[DB] Item ${idx}: code=${item.productCode}, qty=${item.quantity}, unitPrice=${item.unitPrice}, totalPrice=${item.totalPrice}, company=${item.company}, companyId=${item.companyId}`);
+  });
+  
   await db.delete(quoteItems).where(eq(quoteItems.quoteId, quoteId));
   if (items.length > 0) {
-    await db.insert(quoteItems).values(items);
+    try {
+      await db.insert(quoteItems).values(items);
+      console.log(`[DB] Successfully inserted ${items.length} items`);
+    } catch (error) {
+      console.error(`[DB] Error inserting items:`, error);
+      throw error;
+    }
   }
 }
 
