@@ -65,3 +65,12 @@
 - [x] Verificar que a página de Produtos captura corretamente a empresa selecionada
 - [x] Confirmar que company e companyId são salvos corretamente no carrinho
 - [x] Validar que todos os 54 testes continuam passando
+
+
+## Fase 10: Manual de Instalação e Sistemática de Verificação de Impacto
+- [x] Criar INSTALLATION_GUIDE.md com todos os comandos SQL
+- [x] Criar IMPACT_ANALYSIS_GUIDE.md com sistemática de verificação
+- [x] Criar script check-db-integrity.mjs para validação de banco
+- [x] Adicionar comando pnpm check-db ao package.json
+- [x] Documentar matriz de impacto de alterações
+- [x] Documentar fluxo de alteração segura

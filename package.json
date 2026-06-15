@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
-    "init-db": "NODE_ENV=development tsx server/init-db.ts"
+    "init-db": "NODE_ENV=development tsx server/init-db.ts",
+    "check-db": "node scripts/check-db-integrity.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
